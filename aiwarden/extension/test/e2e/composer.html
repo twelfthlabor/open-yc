@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>aiwarden e2e: mock AI chat composer</title>
+<style>body{font:14px system-ui;margin:20px}.c{border:1px solid #999;min-height:60px;padding:6px;margin:6px 0;white-space:pre-wrap}
+textarea{width:100%;height:60px}</style>
+<script>
+// Stub of the chrome.* APIs the content script uses. Messages are captured for assertions.
+window.__msgs = [];
+window.chrome = {
+  runtime: { sendMessage(m, cb) { window.__msgs.push(m); if (cb) cb({ ok: true }); }, lastError: undefined },
+  storage: { local: { get(k, cb) { cb({}); } }, onChanged: { addListener() {} } },
+};
+window.__sent = { textarea: 0, rich: 0, files: 0, pasted: 0 };
+</script>
+</head>
+<body>
+<h1>Mock chat</h1>
+<form id="f1" onsubmit="return false">
+  <textarea id="ta" placeholder="textarea composer"></textarea>
+  <button type="button" id="send1" aria-label="Send prompt">Send</button>
+</form>
+<div id="rich" class="c" contenteditable="true"><p>rich composer</p></div>
+<button type="button" id="send2" data-testid="send-button">Send rich</button>
+<input type="file" id="file" multiple>
+<pre id="log"></pre>
+<script>
+// "Site" handlers, registered on the elements in the bubble phase like a real app would.
+const ta = document.getElementById("ta"), rich = document.getElementById("rich");
+const sendTa = () => { window.__sent.textarea++; ta.value = ""; };
+ta.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendTa(); } });
+document.getElementById("send1").addEventListener("click", sendTa);
+rich.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); window.__sent.rich++; } });
+document.getElementById("send2").addEventListener("click", () => { window.__sent.rich++; });
+document.getElementById("file").addEventListener("change", (e) => { window.__sent.files += e.target.files.length; });
+ta.addEventListener("paste", () => { window.__sent.pasted++; });
+</script>
+<script src="../../detect.js"></script>
+<script src="../../sites.js"></script>
+<script src="../../content.js"></script>
+</body>
+</html>

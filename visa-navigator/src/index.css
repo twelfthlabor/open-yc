@@ -1,0 +1,313 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/geist";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+    --font-heading: var(--font-sans);
+    --font-sans: 'Geist Variable', sans-serif;
+    --color-sidebar-ring: var(--sidebar-ring);
+    --color-sidebar-border: var(--sidebar-border);
+    --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+    --color-sidebar-accent: var(--sidebar-accent);
+    --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+    --color-sidebar-primary: var(--sidebar-primary);
+    --color-sidebar-foreground: var(--sidebar-foreground);
+    --color-sidebar: var(--sidebar);
+    --color-chart-5: var(--chart-5);
+    --color-chart-4: var(--chart-4);
+    --color-chart-3: var(--chart-3);
+    --color-chart-2: var(--chart-2);
+    --color-chart-1: var(--chart-1);
+    --color-ring: var(--ring);
+    --color-input: var(--input);
+    --color-border: var(--border);
+    --color-destructive: var(--destructive);
+    --color-accent-foreground: var(--accent-foreground);
+    --color-accent: var(--accent);
+    --color-muted-foreground: var(--muted-foreground);
+    --color-muted: var(--muted);
+    --color-secondary-foreground: var(--secondary-foreground);
+    --color-secondary: var(--secondary);
+    --color-primary-foreground: var(--primary-foreground);
+    --color-primary: var(--primary);
+    --color-popover-foreground: var(--popover-foreground);
+    --color-popover: var(--popover);
+    --color-card-foreground: var(--card-foreground);
+    --color-card: var(--card);
+    --color-foreground: var(--foreground);
+    --color-background: var(--background);
+    --radius-sm: calc(var(--radius) * 0.6);
+    --radius-md: calc(var(--radius) * 0.8);
+    --radius-lg: var(--radius);
+    --radius-xl: calc(var(--radius) * 1.4);
+    --radius-2xl: calc(var(--radius) * 1.8);
+    --radius-3xl: calc(var(--radius) * 2.2);
+    --radius-4xl: calc(var(--radius) * 2.6);
+    --animate-shimmer-slide: shimmer-slide var(--speed) ease-in-out infinite alternate;
+    --animate-spin-around: spin-around calc(var(--speed) * 2) infinite linear;
+    --animate-shiny-text: shiny-text 8s infinite;
+    --animate-marquee: marquee var(--duration) infinite linear;
+    --animate-marquee-vertical: marquee-vertical var(--duration) linear infinite;
+    --animate-gradient: gradient 8s linear infinite;
+  @keyframes shimmer-slide {
+  to {
+    transform: translate(calc(100cqw - 100%), 0);
+        }
+    }
+  @keyframes spin-around {
+  0% {
+    transform: translateZ(0) rotate(0);
+        }
+  15%, 35% {
+    transform: translateZ(0) rotate(90deg);
+        }
+  65%, 85% {
+    transform: translateZ(0) rotate(270deg);
+        }
+  100% {
+    transform: translateZ(0) rotate(360deg);
+        }
+    }
+  @keyframes shiny-text {
+  0%, 90%, 100% {
+    background-position: calc(-100% - var(--shiny-width)) 0;
+        }
+  30%, 60% {
+    background-position: calc(100% + var(--shiny-width)) 0;
+        }
+    }
+  @keyframes marquee {
+  from {
+    transform: translateX(0);
+        }
+  to {
+    transform: translateX(calc(-100% - var(--gap)));
+        }
+    }
+  @keyframes marquee-vertical {
+  from {
+    transform: translateY(0);
+        }
+  to {
+    transform: translateY(calc(-100% - var(--gap)));
+        }
+    }
+  @keyframes gradient {
+  to {
+    background-position: var(--bg-size, 300%) 0;
+        }
+    }
+}
+
+:root {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --popover: oklch(1 0 0);
+    --popover-foreground: oklch(0.145 0 0);
+    --primary: oklch(0.205 0 0);
+    --primary-foreground: oklch(0.985 0 0);
+    --secondary: oklch(0.97 0 0);
+    --secondary-foreground: oklch(0.205 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.556 0 0);
+    --accent: oklch(0.97 0 0);
+    --accent-foreground: oklch(0.205 0 0);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.922 0 0);
+    --input: oklch(0.922 0 0);
+    --ring: oklch(0.708 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --radius: 0.625rem;
+    --sidebar: oklch(0.985 0 0);
+    --sidebar-foreground: oklch(0.145 0 0);
+    --sidebar-primary: oklch(0.205 0 0);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.97 0 0);
+    --sidebar-accent-foreground: oklch(0.205 0 0);
+    --sidebar-border: oklch(0.922 0 0);
+    --sidebar-ring: oklch(0.708 0 0);
+}
+
+.dark {
+    --background: oklch(0.145 0 0);
+    --foreground: oklch(0.985 0 0);
+    --card: oklch(0.205 0 0);
+    --card-foreground: oklch(0.985 0 0);
+    --popover: oklch(0.205 0 0);
+    --popover-foreground: oklch(0.985 0 0);
+    --primary: oklch(0.922 0 0);
+    --primary-foreground: oklch(0.205 0 0);
+    --secondary: oklch(0.269 0 0);
+    --secondary-foreground: oklch(0.985 0 0);
+    --muted: oklch(0.269 0 0);
+    --muted-foreground: oklch(0.708 0 0);
+    --accent: oklch(0.269 0 0);
+    --accent-foreground: oklch(0.985 0 0);
+    --destructive: oklch(0.704 0.191 22.216);
+    --border: oklch(1 0 0 / 10%);
+    --input: oklch(1 0 0 / 15%);
+    --ring: oklch(0.556 0 0);
+    --chart-1: oklch(0.87 0 0);
+    --chart-2: oklch(0.556 0 0);
+    --chart-3: oklch(0.439 0 0);
+    --chart-4: oklch(0.371 0 0);
+    --chart-5: oklch(0.269 0 0);
+    --sidebar: oklch(0.205 0 0);
+    --sidebar-foreground: oklch(0.985 0 0);
+    --sidebar-primary: oklch(0.488 0.243 264.376);
+    --sidebar-primary-foreground: oklch(0.985 0 0);
+    --sidebar-accent: oklch(0.269 0 0);
+    --sidebar-accent-foreground: oklch(0.985 0 0);
+    --sidebar-border: oklch(1 0 0 / 10%);
+    --sidebar-ring: oklch(0.556 0 0);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+    }
+  body {
+    @apply bg-background text-foreground;
+    }
+  button:not(:disabled), [role="button"]:not(:disabled) {
+    cursor: pointer;
+    }
+  html {
+    @apply font-sans;
+    }
+}
+/* ---------- Visa Navigator brand + liquid glass ---------- */
+
+@theme inline {
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+}
+
+:root {
+  --background: oklch(0.985 0.005 255);
+  --foreground: oklch(0.2 0.02 265);
+  --card: oklch(1 0 0);
+  --primary: oklch(0.53 0.2 262);
+  --primary-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.955 0.025 262);
+  --accent-foreground: oklch(0.38 0.16 262);
+  --muted-foreground: oklch(0.52 0.02 265);
+  --ring: oklch(0.62 0.17 262);
+  --success: oklch(0.6 0.15 155);
+  --success-foreground: oklch(0.99 0 0);
+  --warning: oklch(0.72 0.15 70);
+  --warning-foreground: oklch(0.25 0.05 70);
+  --radius: 0.9rem;
+  --aurora-1: oklch(0.82 0.12 262 / 0.55);
+  --aurora-2: oklch(0.86 0.1 200 / 0.45);
+  --aurora-3: oklch(0.88 0.09 320 / 0.35);
+  --glass-tint: oklch(1 0 0 / 0.62);
+  --glass-edge: oklch(1 0 0 / 0.7);
+  --glass-shine: oklch(1 0 0 / 0.75);
+  --glass-shadow: oklch(0.35 0.06 265 / 0.14);
+}
+
+.dark {
+  --background: oklch(0.15 0.015 265);
+  --foreground: oklch(0.96 0.005 265);
+  --card: oklch(0.2 0.018 265);
+  --popover: oklch(0.21 0.018 265);
+  --primary: oklch(0.72 0.15 262);
+  --primary-foreground: oklch(0.17 0.03 262);
+  --accent: oklch(0.27 0.05 262);
+  --accent-foreground: oklch(0.88 0.06 262);
+  --muted: oklch(0.25 0.015 265);
+  --muted-foreground: oklch(0.72 0.02 265);
+  --ring: oklch(0.72 0.15 262);
+  --success: oklch(0.72 0.15 155);
+  --success-foreground: oklch(0.17 0.03 155);
+  --warning: oklch(0.8 0.14 75);
+  --warning-foreground: oklch(0.2 0.04 75);
+  --aurora-1: oklch(0.45 0.18 262 / 0.45);
+  --aurora-2: oklch(0.45 0.12 200 / 0.3);
+  --aurora-3: oklch(0.42 0.14 320 / 0.25);
+  --glass-tint: oklch(0.24 0.02 265 / 0.55);
+  --glass-edge: oklch(1 0 0 / 0.1);
+  --glass-shine: oklch(1 0 0 / 0.08);
+  --glass-shadow: oklch(0 0 0 / 0.45);
+}
+
+/* Frosted surface with a bright top edge, like Apple's liquid glass. */
+@utility glass {
+  background: var(--glass-tint);
+  backdrop-filter: blur(22px) saturate(1.7);
+  -webkit-backdrop-filter: blur(22px) saturate(1.7);
+  border: 1px solid var(--glass-edge);
+  box-shadow:
+    inset 0 1px 0 0 var(--glass-shine),
+    0 12px 40px -14px var(--glass-shadow);
+}
+
+@utility glass-subtle {
+  background: color-mix(in oklab, var(--glass-tint) 70%, transparent);
+  backdrop-filter: blur(14px) saturate(1.4);
+  -webkit-backdrop-filter: blur(14px) saturate(1.4);
+  border: 1px solid var(--glass-edge);
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .glass,
+  .glass-subtle {
+    background: var(--card);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
+/* Soft moving colour field behind the glass. */
+.aurora {
+  position: fixed;
+  inset: -20vmax;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(40vmax 40vmax at 15% 20%, var(--aurora-1), transparent 60%),
+    radial-gradient(35vmax 35vmax at 85% 15%, var(--aurora-2), transparent 60%),
+    radial-gradient(45vmax 45vmax at 70% 90%, var(--aurora-3), transparent 60%);
+  filter: blur(10px);
+  animation: aurora-drift 26s ease-in-out infinite alternate;
+}
+
+@keyframes aurora-drift {
+  from { transform: translate3d(0, 0, 0) rotate(0deg); }
+  to { transform: translate3d(-3vmax, 2vmax, 0) rotate(6deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .aurora { animation: none; }
+  /* Marquee runs on CSS, so MotionConfig does not reach it. */
+  .animate-marquee { animation: none; }
+}
+
+.mono {
+  font-family: ui-monospace, 'Cascadia Code', 'SF Mono', Consolas, monospace;
+}
+
+/* Print packet: only the packet prints. */
+.print-only { display: none; }
+@media print {
+  .no-print, .aurora { display: none !important; }
+  .print-only { display: block; }
+  body { background: #fff; color: #000; }
+  .packet { font-size: 11pt; }
+  .packet section { break-inside: avoid; margin-bottom: 18pt; }
+  .packet pre { white-space: pre-wrap; font-family: inherit; }
+  .packet h1 { font-size: 20pt; font-weight: 700; }
+  .packet h2 { font-size: 14pt; font-weight: 650; margin: 12pt 0 6pt; }
+}

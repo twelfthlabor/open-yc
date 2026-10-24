@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Personal details</title>
+<style>.select2-hidden-accessible{border:0!important;clip:rect(0 0 0 0)!important;height:1px!important;margin:-1px!important;overflow:hidden!important;padding:0!important;position:absolute!important;width:1px!important}</style>
+</head>
+<body>
+<form action="declaration.html" method="get" id="f">
+  <fieldset><legend>Personal details</legend>
+  <div class="form-group required"><label for="Surname">1. Surname (Family name)</label><input id="Surname" name="Surname" required></div>
+  <div class="form-group"><label for="SurnameAtBirth">2. Surname at birth (Former family name(s))</label><input id="SurnameAtBirth" name="SurnameAtBirth"></div>
+  <div class="form-group required"><label for="FirstName">3. First name(s) (Given name(s))</label><input id="FirstName" name="FirstName" required></div>
+  <div class="form-group required"><label for="DateOfBirth">4. Date of birth</label><input id="DateOfBirth" name="DateOfBirth" placeholder="dd.mm.yyyy" required></div>
+  <div class="form-group required"><label for="Nationality">7. Current nationality</label>
+    <select id="Nationality" name="Nationality" class="select2-hidden-accessible" required>
+      <option value=""></option><option value="CAN">CANADA</option><option value="CHN">CHINA</option><option value="HRV">CROATIA</option>
+    </select><span class="select2 select2-container"><span class="select2-selection">Choose</span></span>
+  </div>
+  <div class="form-group required"><span class="control-label">8. Sex</span>
+    <label><input type="radio" name="Sex" value="M" required> Male</label>
+    <label><input type="radio" name="Sex" value="F"> Female</label>
+  </div>
+  <div class="form-group required"><label for="Colour">Favourite colour</label><input id="Colour" name="Colour" required></div>
+  </fieldset>
+  <button type="button" onclick="history.back()">Back</button>
+  <button type="submit" id="next">Save and continue</button>
+</form>
+<script>
+  // Mirrors client-side validation: stay on the page while a required field is empty.
+  document.getElementById('f').addEventListener('submit', (e) => {
+    const empty = [...document.querySelectorAll('[required]')].filter((el) => el.type === 'radio' ? !document.querySelector('input[name="' + el.name + '"]:checked') : !el.value);
+    if (empty.length) { e.preventDefault(); document.body.dataset.errors = String(empty.length); }
+    else sessionStorage.setItem('details', new URLSearchParams(new FormData(e.target)).toString());
+  });
+</script>
+</body></html>

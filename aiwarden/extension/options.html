@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>aiwarden options</title>
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+<main>
+<h1>aiwarden browser guard</h1>
+<p class="muted">Content is inspected on this device. Prompts, pasted text and files are never stored or sent.
+Events record only the site, which detectors fired and how many times, the action, your decision and the time.</p>
+<section>
+<h2>Protection</h2>
+<label><input type="checkbox" id="enabled"> Inspect messages, pastes, drops and file uploads on AI sites</label>
+<label for="emailThreshold">Bulk email: warn from this many unique addresses</label>
+<input type="number" id="emailThreshold" min="2" max="1000">
+<label for="minRows">Customer list: minimum data rows</label>
+<input type="number" id="minRows" min="3" max="10000">
+</section>
+<section>
+<h2>Action per detector</h2>
+<table><thead><tr><th>Detector</th><th>Type</th><th>Action</th></tr></thead><tbody id="detectors"></tbody></table>
+<div class="row"><button id="reset">Reset to defaults</button></div>
+</section>
+<section>
+<h2>Collector (optional)</h2>
+<p class="muted">Send metadata-only events and site usage to your aiwarden collector (aiwarden serve).
+Leave blank to keep everything in this browser.</p>
+<label for="url">Collector URL</label>
+<input type="url" id="url" placeholder="https://aiwarden.internal:8765">
+<label for="token">Collector token</label>
+<input type="password" id="token" autocomplete="off">
+<label for="label">Profile label (letters, digits, space . _ @ -)</label>
+<input type="text" id="label" placeholder="alice work laptop">
+<label for="deviceId">aiwarden device id (optional; links this profile to a device in the fleet view)</label>
+<input type="text" id="deviceId">
+<div class="row"><button id="test">Save and send now</button><span id="syncStatus" class="muted"></span></div>
+</section>
+<div class="row"><button class="primary" id="save">Save</button><span id="saved" class="ok"></span></div>
+</main>
+<script src="detect.js"></script>
+<script src="options.js"></script>
+</body>
+</html>

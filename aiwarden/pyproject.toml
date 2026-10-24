@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aiwarden"
+version = "0.1.0"
+description = "Open-source endpoint visibility and guardrails for AI apps, agents and MCP servers"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.11"
+authors = [{ name = "Daniel Liu" }]
+keywords = ["ai-security", "mcp", "shadow-ai", "agents", "claude-code", "endpoint"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: OS Independent",
+  "Topic :: Security",
+]
+dependencies = []
+
+[project.optional-dependencies]
+proc = ["psutil>=5.9"]
+dev = ["pytest>=8"]
+
+[project.scripts]
+aiwarden = "aiwarden.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+aiwarden = ["static/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-p no:randomly"

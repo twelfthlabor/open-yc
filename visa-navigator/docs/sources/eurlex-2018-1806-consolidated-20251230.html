@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta http-equiv="X-UA-Compatible" content="IE=edge">
+	<meta content="text/html; charset=UTF-8" http-equiv="Content-Type">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<meta name="DCSext.lang" content="en">
+	<meta name="WT.cg_n" content="Todays OJ">
+	<meta name="version" content="1.2.0">
+	<meta name="updatedon" content="2025-10-01">
+	<meta name="env" content="Amazon">
+	<meta name="csrf_enable" content="false">
+	<meta name="csrf_token" content="bf260a89ebf6ecdab7e2b73841fbd346b7c45e1eab580bc437234c08693dddd6:711cd14d6fecd33f652c07e9ac0c7be6d26073918c233a7ab986da2144fc8f41">
+	<title>EUR-Lex - Official Journal of the European Union</title>
+	<link rel="stylesheet" href="vendor/bootstrap-v3.4.1/dist/css/bootstrap.css" type="text/css">
+	<link rel="stylesheet" href="vendor/roboto/roboto.css" type="text/css">
+	<link rel="stylesheet" href="vendor/font-awesome/css/font-awesome.css" type="text/css">	
+	<link rel="stylesheet" href="css/eurlex.css" type="text/css">
+	<link rel="stylesheet" href="vendor/ec/eu-preset-v4.1.1/styles/ecl-eu.css" type="text/css">
+	<link rel="stylesheet" href="css/eurlex-ec.css" type="text/css">
+	<link rel="shortcut icon" href="images/eurlex.ico">
+	<script type="text/javascript" src="js/jquery.min.js"></script>
+	<script type="text/javascript" src="js/purify.min.js"></script>
+	<script type="text/javascript" src="vendor/bootstrap-v3.4.1/dist/js/bootstrap.min.js"></script>
+	<script type="text/javascript" src="js/eur-lex.js"></script>
+	<script type="text/javascript" src="js/translation.js"></script>
+	<script defer src="https://europa.eu/webtools/load.js?globan=1110" type="text/javascript"></script>	
+	<script type="text/javascript" src="js/cookieConsentKitUtils.js"></script>
+	<script type="text/javascript" src="js/webanalytics.js"></script>
+	<script type="text/javascript" src="vendor/ec/eu-preset-v4.1.1/scripts/ecl-eu.js"></script>
+	<script type="text/javascript" src="vendor/svg4everybody-v2.1.9/dist/svg4everybody.js"></script>
+<script>
+	$(function(){
+		var lang = localStorage.getItem("lang") || "en";
+		if (lang.length == 2 && /^[a-z]+$/.test(lang)) {
+			var $count0 = 0;
+			var $count1 = 0;
+			var $count2 = 0;
+			var $count3 = 0;
+			var $count4 = 0;
+
+			$("#legislation-0").load("legislation-0.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count0++;
+					$("#legislation-0 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+					// Title not always displayed
+					$('div.oj-act').each(function(index, elem){
+						if( $(elem).children( '.abatitle[lang='+lang+']' ).length == 0) {
+							$("<p class='abatitle' lang='"+lang+"' style='display:block;'>"+translation[lang]["no-aba-title"]+"</p>").insertBefore($(elem).children( '.abatitle' )[0]);
+						}
+						$(elem).children( '.abatitle[lang='+sanitize(lang)+']' ).show();
+					});	
+				}
+			});
+			$("#information-0").load("information-0.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count0++;
+					$("#information-0 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+				}
+				if ($count0 > 0) {
+					$(this).parent().parent().parent().prev().show();
+				}
+				// Title not always displayed
+				$('div.oj-act').each(function(index, elem){
+					if( $(elem).children( '.abatitle[lang='+lang+']' ).length == 0) {
+						$("<p class='abatitle' lang='"+lang+"' style='display:block;'>"+translation[lang]["no-aba-title"]+"</p>").insertBefore($(elem).children( '.abatitle' )[0]);
+					}
+					$(elem).children( '.abatitle[lang='+sanitize(lang)+']' ).show();
+				});	
+			});
+			
+			$("#legislation-1").load("legislation-1.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count1++;
+					$("#legislation-1 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+				}
+			});
+			$("#information-1").load("information-1.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count1++;
+					$("#information-1 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+				}
+				if ($count1 > 0) {
+					$(this).parent().parent().parent().prev().show();
+				}
+			});
+			
+			$("#legislation-2").load("legislation-2.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count2++;
+					$("#legislation-2 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+				}
+			});
+			$("#information-2").load("information-2.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count2++;
+					$("#information-2 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+				}
+				if ($count2 > 0) {
+					$(this).parent().parent().parent().prev().show();
+				}
+			});
+			
+			$("#legislation-3").load("legislation-3.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count3++;
+					$("#legislation-3 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+				}
+			});
+			$("#information-3").load("information-3.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count3++;
+					$("#information-3 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+				}
+				if ($count3 > 0) {
+					$(this).parent().parent().parent().prev().show();
+				}
+			});
+			
+			$("#legislation-4").load("legislation-4.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count4++;
+					$("#legislation-4 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+				}
+			});
+			$("#information-4").load("information-4.html", function(response, status, xhr) {
+				if (status === "success" && response != "") {
+					$(this).parent().parent().show();
+					$count4++;
+					$("#information-4 .e-signature-translation").text(translation[lang]["e-signature-translation"]);
+				}
+				if ($count4 > 0) {
+					$(this).parent().parent().parent().prev().show();
+				}
+			});
+		
+		}
+	});  
+</script>
+	
+</head>
+
+<body>
+	
+<script>
+    (function(window, document, dataLayerName, id) {
+window[dataLayerName]=window[dataLayerName]||[],window[dataLayerName].push({start:(new Date).getTime(),event:"stg.start"});var scripts=document.getElementsByTagName('script')[0],tags=document.createElement('script');
+function stgCreateCookie(a,b,c){var d="";if(c){var e=new Date;e.setTime(e.getTime()+24*c*60*60*1e3),d="; expires="+e.toUTCString();f="; SameSite=Strict"}document.cookie=a+"="+b+d+f+"; path=/"}
+var isStgDebug=(window.location.href.match("stg_debug")||document.cookie.match("stg_debug"))&&!window.location.href.match("stg_disable_debug");stgCreateCookie("stg_debug",isStgDebug?1:"",isStgDebug?14:-1);
+var qP=[];dataLayerName!=="dataLayer"&&qP.push("data_layer_name="+dataLayerName),isStgDebug&&qP.push("stg_debug");var qPString=qP.length>0?("?"+qP.join("&")):"";
+tags.async=!0,tags.src="https://analytics.webanalytics.op.europa.eu/containers/"+id+".js"+qPString,scripts.parentNode.insertBefore(tags,scripts);
+!function(a,n,i){a[n]=a[n]||{};for(var c=0;c<i.length;c++)!function(i){a[n][i]=a[n][i]||{},a[n][i].api=a[n][i].api||function(){var a=[].slice.call(arguments,0);"string"==typeof a[0]&&window[dataLayerName].push({event:n+"."+i+":"+a[0],parameters:[].slice.call(arguments,1)})}}(i[c])}(window,"ppms",["tm","cm"]);
+})(window, document, 'dataLayer', '0b5594a8-b9c8-4cd6-aa25-5c578dcf91df'); 
+</script>
+
+	<div class="Wrapper clearfix">
+		<!-- header included via eur-lex.js -->
+		<div id="header"></div>
+
+		<div id="mainContent">
+			<div id="content" class="row row-offcanvas">
+				<div class="col-sm-10 col-md-10 col-sm-push-1 col-md-push-1">
+					<h1 id="official_journal-title" class="SectionTitle">official_journal</h1>
+					<div id="middle-column">
+
+						<div class="oj-explanations">
+							<p id="electronic_signature">
+								<a href="https://checklex.publications.europa.eu/" target="_blank">How to verify the authenticity of the Official Journal</a>
+							</p>
+						</div>
+
+						<div class="oj-day-heading" id="heading-10102026" onclick="toggleOjHeading(this);">
+							OJ 10/10/2026
+						</div>
+						<div>
+							<div class="box">
+								<div class="boxTitle l-legislation">
+									<div class="widgetControl">
+										<a href="javascript:;" id="10102026" class="l-legislation" onclick="toggleNextElement(this);">
+											Series L
+										</a>
+									</div>
+								</div>
+								<div class="oj-content tabContent">
+									<div id="legislation-0"></div>
+								</div>
+							</div>
+
+
+							<div class="box box-c">
+								<div class="boxTitle c-communication">
+									<div class="widgetControl">
+										<a href="javascript:;" id="10102026" class="c-communication" onclick="toggleNextElement(this);">
+											Series C
+										</a>
+									</div>
+								</div>
+								<div class="oj-content-cseries tabContent">
+									<div id="information-0"></div>
+								</div>
+							</div>
+						</div>
+						
+						<div class="oj-day-heading oj-day-heading-colapsed" id="heading-09102026" onclick="toggleOjHeading(this);">
+							OJ 09/10/2026
+						</div>
+						<div class="toggleMe">
+							<div class="box">
+								<div class="boxTitle l-legislation">
+									<div class="widgetControl">
+										<a href="javascript:;" id="09102026" class="l-legislation" onclick="toggleNextElement(this);">
+											Series L
+										</a>
+									</div>
+								</div>
+								<div class="oj-content tabContent">
+									<div id="legislation-1"></div>
+								</div>
+							</div>
+
+
+							<div class="box box-c">
+								<div class="boxTitle c-communication">
+									<div class="widgetControl">
+										<a href="javascript:;" id="09102026" class="c-communication" onclick="toggleNextElement(this);">
+											Series C
+										</a>
+									</div>
+								</div>
+								<div class="oj-content-cseries tabContent">
+									<div id="information-1"></div>
+								</div>
+							</div>
+						</div>
+						
+						<div class="oj-day-heading oj-day-heading-colapsed" id="heading-08102026" onclick="toggleOjHeading(this);">
+							OJ 08/10/2026
+						</div>
+						<div class="toggleMe">
+							<div class="box">
+								<div class="boxTitle l-legislation">
+									<div class="widgetControl">
+										<a href="javascript:;" id="08102026" class="l-legislation" onclick="toggleNextElement(this);">
+											Series L
+										</a>
+									</div>
+								</div>
+								<div class="oj-content tabContent">
+									<div id="legislation-2"></div>
+								</div>
+							</div>
+
+
+							<div class="box box-c">
+								<div class="boxTitle c-communication">
+									<div class="widgetControl">
+										<a href="javascript:;" id="08102026" class="c-communication" onclick="toggleNextElement(this);">
+											Series C
+										</a>
+									</div>
+								</div>
+								<div class="oj-content-cseries tabContent">
+									<div id="information-2"></div>
+								</div>
+							</div>
+						</div>
+						
+						<div class="oj-day-heading oj-day-heading-colapsed" id="heading-07102026" onclick="toggleOjHeading(this);">
+							OJ 07/10/2026
+						</div>
+						<div class="toggleMe">
+							<div class="box">
+								<div class="boxTitle l-legislation">
+									<div class="widgetControl">
+										<a href="javascript:;" id="07102026" class="l-legislation" onclick="toggleNextElement(this);">
+											Series L
+										</a>
+									</div>
+								</div>
+								<div class="oj-content tabContent">
+									<div id="legislation-3"></div>
+								</div>
+							</div>
+
+
+							<div class="box box-c">
+								<div class="boxTitle c-communication">
+									<div class="widgetControl">
+										<a href="javascript:;" id="07102026" class="c-communication" onclick="toggleNextElement(this);">
+											Series C
+										</a>
+									</div>
+								</div>
+								<div class="oj-content-cseries tabContent">
+									<div id="information-3"></div>
+								</div>
+							</div>
+						</div>
+						
+						<div class="oj-day-heading oj-day-heading-colapsed" id="heading-06102026" onclick="toggleOjHeading(this);">
+							OJ 06/10/2026
+						</div>
+						<div class="toggleMe">
+							<div class="box">
+								<div class="boxTitle l-legislation">
+									<div class="widgetControl">
+										<a href="javascript:;" id="06102026" class="l-legislation" onclick="toggleNextElement(this);">
+											Series L
+										</a>
+									</div>
+								</div>
+								<div class="oj-content tabContent">
+									<div id="legislation-4"></div>
+								</div>
+							</div>
+
+
+							<div class="box box-c">
+								<div class="boxTitle c-communication">
+									<div class="widgetControl">
+										<a href="javascript:;" id="06102026" class="c-communication" onclick="toggleNextElement(this);">
+											Series C
+										</a>
+									</div>
+								</div>
+								<div class="oj-content-cseries tabContent">
+									<div id="information-4"></div>
+								</div>
+							</div>
+						</div>
+
+					</div>
+				</div>
+			</div>
+		</div><!--End mainContent -->
+	</div>
+	<!-- footer included via eur-lex.js -->
+	<footer id="footer" class="ecl-site-footer"></footer>
+</body>
+</html>

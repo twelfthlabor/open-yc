@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Declaration</title></head>
+<body>
+<form action="done.html" method="get" id="f">
+  <p>Check your answers before you submit.</p>
+  <div class="form-group required">
+    <label><input type="checkbox" id="Declaration" name="Declaration" required> I declare that to the best of my knowledge all particulars supplied by me are correct and complete.</label>
+  </div>
+  <button type="button">Print</button>
+  <button type="submit" id="submit">Submit application</button>
+</form>
+<script>
+  document.getElementById('f').addEventListener('submit', (e) => { if (!document.getElementById('Declaration').checked) e.preventDefault(); });
+</script>
+</body></html>

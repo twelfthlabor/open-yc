@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>aiwarden fleet</title>
+<style>
+:root{--bg:#f7f7f5;--panel:#fff;--ink:#1d1d1b;--muted:#6b6b66;--line:#e4e3de;--accent:#2f5bd3;
+--high:#c62f2f;--medium:#c27a12;--low:#5d7a2e;--info:#6b6b66;--chip:#efeee9}
+@media (prefers-color-scheme:dark){:root{--bg:#141413;--panel:#1d1d1b;--ink:#ecebe6;--muted:#9a9993;--line:#2e2d2a;
+--accent:#7c9cff;--high:#ff6b6b;--medium:#f0a73a;--low:#9cc05a;--info:#9a9993;--chip:#2a2926}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,Segoe UI,sans-serif}
+header{display:flex;gap:16px;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel);flex-wrap:wrap}
+header h1{font-size:16px;margin:0;letter-spacing:.2px}header .sub{color:var(--muted);font-size:12px}
+nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}nav button{border:1px solid var(--line);background:transparent;color:var(--ink);
+padding:6px 12px;border-radius:6px;cursor:pointer;font:inherit}nav button.on{background:var(--ink);color:var(--bg)}
+main{max-width:1200px;margin:0 auto;padding:20px 16px 60px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px}.kpi b{display:block;font-size:24px;font-weight:600}
+.kpi span{color:var(--muted);font-size:12px}
+section{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px 16px;margin-bottom:16px;overflow-x:auto}
+section h2{font-size:14px;margin:0 0 10px}table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:500}
+tr.click{cursor:pointer}tr.click:hover{background:var(--chip)}
+.sev{display:inline-block;padding:1px 7px;border-radius:10px;font-size:11px;font-weight:600;color:#fff}
+.sev.high,.sev.critical{background:var(--high)}.sev.medium{background:var(--medium)}.sev.low{background:var(--low)}.sev.info{background:var(--info)}
+.chip{display:inline-block;background:var(--chip);border-radius:4px;padding:0 6px;margin:1px;font-size:12px}
+.muted{color:var(--muted)}.bar{height:10px;background:var(--accent);border-radius:2px;min-width:1px}
+.login{max-width:420px;margin:60px auto;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:20px}
+input,select{padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--ink);font:inherit}input{width:100%}
+button.primary{margin-top:10px;padding:8px 14px;border:0;border-radius:6px;background:var(--accent);color:#fff;cursor:pointer;font:inherit}
+#graph{width:100%;height:560px;border:1px solid var(--line);border-radius:6px;background:var(--bg)}
+#graph text{font-size:11px;fill:var(--ink)}.legend span{margin-right:12px;font-size:12px}
+.err{color:var(--high)}
+</style>
+</head>
+<body>
+<header><h1>aiwarden</h1><span class="sub" id="sub">fleet view</span>
+<nav id="nav"></nav></header>
+<main id="main"></main>
+<script>
+"use strict";
+// Every value rendered here comes from device reports, so nodes are built with textContent only (no innerHTML).
+const TABS=["Overview","Findings","Devices","MCP","Usage","Guard","Browser"];
+const TYPE_COLOR={device:"#6b6b66",user:"#8a5cc2",app:"#2f5bd3",mcp:"#1f8a70",package:"#c27a12",host:"#c2410c",model:"#7c3aed",skill:"#0e7490",browser:"#64748b",extension:"#db2777"};
+const state={tab:"Overview",fleet:null,device:null,sev:"all"};
+const store={get(k){try{return localStorage.getItem(k)}catch(e){return null}},set(k,v){try{localStorage.setItem(k,v)}catch(e){}}};
+function el(tag,attrs,...kids){const n=document.createElement(tag);for(const [k,v] of Object.entries(attrs||{})){
+ if(k==="on")for(const [ev,fn] of Object.entries(v))n.addEventListener(ev,fn);else if(k==="class")n.className=v;else n.setAttribute(k,v)}
+ for(const c of kids.flat()){if(c==null)continue;n.append(c instanceof Node?c:document.createTextNode(String(c)))}return n}
+function dur(s){s=Math.max(0,+s||0);const h=Math.floor(s/3600),m=Math.floor(s%3600/60);return h?`${h}h ${m}m`:m?`${m}m`:`${Math.round(s)}s`}
+const ACTS=new Set(["block","warn","allow"]);function act(a){return el("span",{class:"sev "+(a==="block"?"high":a==="warn"?"medium":"info")},ACTS.has(a)?a:"?")}
+function detChips(d){return el("span",{},Object.entries(d||{}).map(([k,n])=>el("span",{class:"chip"},`${k} ×${n}`)))}
+function fmt(n){n=+n||0;return n>=1e9?(n/1e9).toFixed(1)+"B":n>=1e6?(n/1e6).toFixed(1)+"M":n>=1e3?(n/1e3).toFixed(1)+"k":String(n)}
+const SEVS=new Set(["critical","high","medium","low","info"]);
+function sev(s){return el("span",{class:"sev "+(SEVS.has(s)?s:"info")},s)}
+function table(head,rows,onclick){return el("table",{},el("thead",{},el("tr",{},head.map(h=>el("th",{},h)))),
+ el("tbody",{},rows.map((r,i)=>el("tr",onclick?{class:"click",on:{click:()=>onclick(i)}}:{},r.map(c=>el("td",{},c))))))}
+async function api(path){const t=store.get("aiwarden_token")||"";const r=await fetch(path,{headers:{Authorization:"Bearer "+t}});
+ if(r.status===401)throw new Error("unauthorized");if(!r.ok)throw new Error(r.status+" "+r.statusText);return r.json()}
+function login(msg){const main=document.getElementById("main");main.replaceChildren();const inp=el("input",{type:"password",placeholder:"collector token"});
+ main.append(el("div",{class:"login"},el("h2",{},"Connect to collector"),el("p",{class:"muted"},"Paste the token printed by `aiwarden serve`."),
+ msg?el("p",{class:"err"},msg):null,inp,el("button",{class:"primary",on:{click:()=>{store.set("aiwarden_token",inp.value.trim());load()}}},"Connect")))}
+async function load(){try{state.fleet=await api("/api/fleet");render()}catch(e){login(e.message==="unauthorized"?(store.get("aiwarden_token")?"Token rejected.":""):e.message)}}
+function nav(){document.getElementById("nav").replaceChildren(...TABS.map(t=>el("button",{class:t===state.tab?"on":"",on:{click:()=>{state.tab=t;state.device=null;render()}}},t)))}
+function kpis(){const t=state.fleet.totals,f=t.findings||{};const k=(v,l)=>el("div",{class:"kpi"},el("b",{},v),el("span",{},l));
+ return el("div",{class:"kpis"},k(t.devices||0,"devices"),k(t.apps||0,"AI app installs"),k(t.mcp_servers||0,"MCP servers"),
+ k(t.plaintext_secrets||0,"plaintext secrets"),k((f.critical||0)+(f.high||0),"high findings"),k(fmt(t.tokens),"tokens (in+out)"),
+ k(`${t.guarded_devices||0}/${t.devices||0}`,"devices with guard"),k(t.guard_blocks||0,"blocked actions"))}
+function findingsTable(list){return table(["Severity","Rule","Finding","Device","Where"],list.map(f=>[sev(f.severity),f.rule,
+ el("div",{},el("div",{},f.title),el("div",{class:"muted"},f.detail||"")),f.hostname||"",el("span",{class:"muted"},f.location||"")]))}
+function bars(obj,key){const rows=Object.entries(obj||{});const max=Math.max(1,...rows.map(([,v])=>v[key]||0));
+ return table(["",key.replace(/_/g," "),""],rows.map(([k,v])=>[k,fmt(v[key]||0),el("div",{class:"bar",style:`width:${Math.round(240*(v[key]||0)/max)}px`})]))}
+function render(){nav();const F=state.fleet,main=document.getElementById("main");main.replaceChildren();
+ document.getElementById("sub").textContent=`${F.totals.devices||0} devices · updated ${F.generated_at}`;
+ if(state.device)return renderDevice(main);
+ if(state.tab==="Overview"){main.append(kpis(),
+  el("section",{},el("h2",{},"Top findings"),findingsTable(F.findings.filter(f=>f.severity==="high"||f.severity==="critical").slice(0,15))),
+  el("section",{},el("h2",{},"AI apps across the fleet"),table(["App","Kind","Vendor","Devices","Running"],
+   Object.entries(F.apps).map(([id,a])=>[a.name||id,a.kind||"",a.vendor||"",a.devices,a.running]))))}
+ if(state.tab==="Findings"){const sel=el("select",{on:{change:e=>{state.sev=e.target.value;render()}}},
+  ["all","high","medium","low","info"].map(s=>{const o=el("option",{value:s},s);if(s===state.sev)o.selected=true;return o}));
+  const list=F.findings.filter(f=>state.sev==="all"||f.severity===state.sev);
+  main.append(el("section",{},el("h2",{},`Findings (${list.length}) `,sel),findingsTable(list)))}
+ if(state.tab==="Devices"){main.append(el("section",{},el("h2",{},"Devices (click a row for its relationship graph)"),
+  table(["Host","User","OS","Apps","MCP","Secrets","High","Tokens","Guard","Last report"],F.devices.map(d=>{const s=d.summary||{},f=s.findings||{};
+   return [d.hostname,d.user,d.os,s.apps,s.mcp_servers,s.plaintext_secrets,(f.high||0)+(f.critical||0),fmt(s.tokens),s.guard_installed?"on":"off",d.received_at]}),
+   i=>openDevice(F.devices[i].id))))}
+ if(state.tab==="MCP"){main.append(el("section",{},el("h2",{},"MCP servers by package / endpoint"),
+  table(["Package or URL","Devices","Clients"],F.mcp_packages.map(p=>[p.package,p.devices,el("span",{},p.clients.map(c=>el("span",{class:"chip"},c)))]))))}
+ if(state.tab==="Usage"){main.append(el("section",{},el("h2",{},"Output tokens by model"),bars(F.usage.by_model,"output_tokens")),
+  el("section",{},el("h2",{},"Input tokens by agent"),bars(F.usage.by_app,"input_tokens")),
+  el("section",{},el("h2",{},"Output tokens by day (last 30)"),bars(Object.fromEntries(Object.entries(F.usage.by_day).slice(-30)),"output_tokens")))}
+ if(state.tab==="Guard"){main.append(el("section",{},el("h2",{},"Guard decisions (most recent first)"),
+  table(["When","Host","Tool","Rule","Action"],F.guard_events.map(e=>[e.ts||"",e.hostname||"",e.tool||"",e.rule||"",e.would_be?`${e.action} (would ${e.would_be})`:e.action]))))}
+ if(state.tab==="Browser")renderBrowser(main,F.browser||{})}
+function renderBrowser(main,B){const sites=B.sites||[],dets=B.detectors||[],profs=B.profiles||[],evs=B.events||[],t=state.fleet.totals||{};
+ const k=(v,l)=>el("div",{class:"kpi"},el("b",{},v),el("span",{},l));const max=Math.max(1,...sites.map(s=>s.seconds||0));
+ main.append(el("div",{class:"kpis"},k(profs.length,"browser profiles"),k(sites.length,"AI sites used"),k(dur(sites.reduce((a,s)=>a+(s.seconds||0),0)),"time on AI sites"),
+  k(t.browser_warns||0,"DLP warnings"),k(t.browser_blocks||0,"DLP blocks")),
+  el("section",{},el("h2",{},"AI sites used in the browser"),sites.length?table(["Site","Time","Visits","Profiles","Warned","Blocked",""],
+   sites.map(s=>[s.site,dur(s.seconds),s.visits,s.profiles,s.warns,s.blocks,el("div",{class:"bar",style:`width:${Math.round(200*(s.seconds||0)/max)}px`})])):
+   el("p",{class:"muted"},"No browser data yet. Install the extension (extension/README.md) and set this collector in its options.")),
+  el("section",{},el("h2",{},"Sensitive data caught, by detector"),table(["Detector","Events","Blocked","Warned","Sent anyway","Cancelled"],
+   dets.map(d=>[d.detector,d.events,d.blocks,d.warns,d.sent_anyway,d.cancelled]))),
+  el("section",{},el("h2",{},"Browser profiles"),table(["Profile","Browser","Device","Sites","Time","Events","Blocks","Last seen"],
+   profs.map(p=>[p.label||p.id,p.browser,p.hostname||p.device_id||"",p.sites,dur(p.seconds),p.events,p.blocks,p.last_seen||""]))),
+  el("section",{},el("h2",{},"Browser DLP events (metadata only, most recent first)"),table(["When","Profile","Site","Channel","Detectors","Action","Decision"],
+   evs.map(e=>[e.ts,e.label||e.profile_id,e.site,e.channel+(e.file_ext?` (.${e.file_ext})`:""),detChips(e.detectors),act(e.action),e.decision]))))}
+async function openDevice(id){try{state.device=await api("/api/devices/"+encodeURIComponent(id));render()}catch(e){document.getElementById("main").prepend(el("p",{class:"err"},e.message))}}
+function renderDevice(main){const r=state.device,d=r.device;
+ main.append(el("p",{},el("a",{href:"#",on:{click:e=>{e.preventDefault();state.device=null;render()}}},"← back"),"  ",el("b",{},d.hostname)," ",el("span",{class:"muted"},`${d.user} · ${d.os} · ${r.generated_at}`)),
+  el("section",{},el("h2",{},"Relationship graph"),el("div",{class:"legend"},Object.entries(TYPE_COLOR).map(([t,c])=>el("span",{},el("span",{style:`color:${c}`},"●")," "+t))),graphSvg(r.graph)),
+  el("section",{},el("h2",{},"Findings"),findingsTable(r.findings.map(f=>({...f,hostname:d.hostname})))),
+  el("section",{},el("h2",{},"MCP servers"),table(["Client","Scope","Name","Transport","Package / URL","Secrets"],
+   r.mcp_servers.map(m=>[m.client,m.scope,m.name,m.transport,m.package||m.url||m.command||"",m.secrets.length||""]))))}
+function graphSvg(g){const W=1100,H=560,NS="http://www.w3.org/2000/svg";
+ const nodes=g.nodes.map((n,i)=>({...n,x:W/2+Math.cos(i)*220*Math.random(),y:H/2+Math.sin(i)*220*Math.random(),vx:0,vy:0}));
+ const idx=new Map(nodes.map((n,i)=>[n.id,i]));const edges=g.edges.filter(e=>idx.has(e.source)&&idx.has(e.target)).map(e=>({s:idx.get(e.source),t:idx.get(e.target)}));
+ for(let it=0;it<300;it++){for(let i=0;i<nodes.length;i++)for(let j=i+1;j<nodes.length;j++){const a=nodes[i],b=nodes[j];const dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+0.01;
+  const f=2200/d2,d=Math.sqrt(d2);a.vx+=f*dx/d;a.vy+=f*dy/d;b.vx-=f*dx/d;b.vy-=f*dy/d}
+  for(const e of edges){const a=nodes[e.s],b=nodes[e.t];const dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)+0.01,f=(d-90)*0.02;a.vx+=f*dx/d;a.vy+=f*dy/d;b.vx-=f*dx/d;b.vy-=f*dy/d}
+  for(const n of nodes){n.vx+=(W/2-n.x)*0.003;n.vy+=(H/2-n.y)*0.003;n.x+=Math.max(-20,Math.min(20,n.vx*0.5));n.y+=Math.max(-20,Math.min(20,n.vy*0.5));n.vx*=0.6;n.vy*=0.6;
+   n.x=Math.max(20,Math.min(W-20,n.x));n.y=Math.max(20,Math.min(H-20,n.y))}}
+ const mk=(t,a)=>{const e=document.createElementNS(NS,t);for(const [k,v] of Object.entries(a))e.setAttribute(k,v);return e};
+ const svg=mk("svg",{id:"graph",viewBox:`0 0 ${W} ${H}`});
+ for(const e of edges){const a=nodes[e.s],b=nodes[e.t];svg.append(mk("line",{x1:a.x,y1:a.y,x2:b.x,y2:b.y,stroke:"#9a9993","stroke-opacity":.45}))}
+ for(const n of nodes){const sv=n.meta&&n.meta.max_severity;const c=mk("circle",{cx:n.x,cy:n.y,r:n.type==="device"?10:7,fill:TYPE_COLOR[n.type]||"#888",
+  stroke:sv==="high"||sv==="critical"?"#c62f2f":sv==="medium"?"#c27a12":"none","stroke-width":3});
+  const t=mk("title",{});t.textContent=`${n.type}: ${n.label}`+(sv?` (${n.meta.findings} findings, max ${sv})`:"");c.append(t);
+  const lbl=mk("text",{x:n.x+10,y:n.y+4});lbl.textContent=String(n.label).slice(0,28);svg.append(c,lbl)}
+ return svg}
+load();
+</script>
+</body>
+</html>

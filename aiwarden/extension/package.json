@@ -1,0 +1,7 @@
+{
+  "name": "aiwarden-browser-extension",
+  "private": true,
+  "description": "Not published. Lets `node --test extension/` resolve to the test runner; Chrome ignores this file.",
+  "main": "test/run-all.js",
+  "scripts": { "test": "node --test ." }
+}

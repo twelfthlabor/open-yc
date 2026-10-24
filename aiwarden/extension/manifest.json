@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "aiwarden browser guard",
+  "version": "0.1.0",
+  "description": "Warns or blocks before secrets, card numbers, SSNs or customer lists are sent to AI chat sites. Inspection is local; only metadata is kept.",
+  "minimum_chrome_version": "111",
+  "permissions": ["storage", "alarms"],
+  "background": { "service_worker": "background.js" },
+  "action": { "default_title": "aiwarden", "default_popup": "popup.html" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "content_security_policy": { "extension_pages": "script-src 'self'; object-src 'self'" },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chatgpt.com/*", "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*", "https://aistudio.google.com/*", "https://notebooklm.google.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://www.perplexity.ai/*", "https://perplexity.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://chat.mistral.ai/*",
+        "https://grok.com/*",
+        "https://poe.com/*",
+        "https://www.meta.ai/*", "https://meta.ai/*",
+        "https://huggingface.co/chat/*"
+      ],
+      "js": ["detect.js", "sites.js", "content.js"],
+      "run_at": "document_start",
+      "all_frames": false
+    }
+  ]
+}
