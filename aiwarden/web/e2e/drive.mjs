@@ -119,10 +119,11 @@ try {
   await page.goto(`${demo.url}/#/`);
   await page.locator("h1.posture a.risk").click();
   await page.waitForFunction(() => location.hash === "#/findings?sev=high");
-  const rows = await page.locator("table.data tbody tr").count();
+  await page.getByRole("heading", { level: 1, name: "Findings" }).waitFor();
+  const rows = await page.locator("table[aria-label='Findings'] tbody tr").count();
   check("headline link opens high-and-above findings", rows === 6, `${rows} rows`);
   await page.getByPlaceholder("Filter by rule, device or text").fill("plaintext");
-  check("findings text filter", (await page.locator("table.data tbody tr").count()) === 3);
+  check("findings text filter", (await page.locator("table[aria-label='Findings'] tbody tr").count()) === 3);
   await page.screenshot({ path: join(OUT, "findings-light.png"), fullPage: true });
 
   // 4. ask
