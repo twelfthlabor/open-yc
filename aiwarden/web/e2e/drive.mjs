@@ -120,9 +120,14 @@ try {
   await page.locator("h1.posture a.risk").click();
   await page.waitForFunction(() => location.hash === "#/findings?sev=high");
   await page.getByRole("heading", { level: 1, name: "Findings" }).waitFor();
-  const rows = await page.locator("table[aria-label='Findings'] tbody tr").count();
+  const findingRows = page.locator("table[aria-label='Findings'] tbody tr");
+  await findingRows.first().waitFor();
+  // poll briefly: React may still be committing the filtered list
+  await page.waitForFunction(() => document.querySelectorAll("table[aria-label='Findings'] tbody tr").length === 6, null, { timeout: 5000 }).catch(() => {});
+  const rows = await findingRows.count();
   check("headline link opens high-and-above findings", rows === 6, `${rows} rows`);
   await page.getByPlaceholder("Filter by rule, device or text").fill("plaintext");
+  await page.waitForFunction(() => document.querySelectorAll("table[aria-label='Findings'] tbody tr").length === 3, null, { timeout: 5000 }).catch(() => {});
   check("findings text filter", (await page.locator("table[aria-label='Findings'] tbody tr").count()) === 3);
   await page.screenshot({ path: join(OUT, "findings-light.png"), fullPage: true });
 
