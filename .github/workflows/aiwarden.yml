@@ -29,3 +29,34 @@ jobs:
       - name: extension unit tests
         if: hashFiles('aiwarden/extension/**/*.test.js') != ''
         run: node --test extension/
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: aiwarden/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: aiwarden/web/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - name: committed console build is up to date
+        run: git diff --exit-code --stat -- ../src/aiwarden/static/app || (echo "Run npm run build in aiwarden/web and commit src/aiwarden/static/app" && exit 1)
+      - run: npx playwright-core install --with-deps chromium
+      - run: npm run e2e
+        env:
+          E2E_OUT: e2e-out
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: console-screenshots
+          path: aiwarden/web/e2e-out

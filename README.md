@@ -7,15 +7,15 @@ same jobs as the company's product.
 None of these projects is affiliated with, endorsed by, or uses code, branding or copy from the
 companies they are modeled on. Company names appear only to describe the product category.
 
-| Project | Modeled on | What it does | Stack |
-|---|---|---|---|
-| [aiwarden](./aiwarden) | Traceforce (YC S26), "CrowdStrike for AI agents" | Endpoint visibility and guardrails for AI apps, coding agents, MCP servers and browser AI. Inventory, risk findings, token usage and cost, pre-execution guard hooks, browser DLP extension, fleet dashboard, alerts and MCP scanning. | Python (stdlib), MV3 extension |
-| [visa-navigator](./visa-navigator) | Veeza AI (YC F26), AI tourist visa service | Plans and prepares tourist visa applications: requirement checklists from official sources, filled forms, cover letter, itinerary, document checks, appointment help and a reviewer packet. Encrypted on your device. | TypeScript, React, Vite |
+| Project | Live app | Modeled on | What it does | Stack |
+|---|---|---|---|---|
+| [aiwarden](./aiwarden) | [aiwarden-gamma.vercel.app](https://aiwarden-gamma.vercel.app) (read-only demo fleet) | Traceforce (YC S26), "CrowdStrike for AI agents" | Endpoint visibility and guardrails for AI apps, coding agents, MCP servers and browser AI. Inventory, risk findings, token usage and cost, pre-execution guard hooks, browser DLP extension, fleet web console, alerts and MCP scanning. | Python (stdlib), React console, MV3 extension |
+| [visa-navigator](./visa-navigator) | [visa-ai-application.vercel.app](https://visa-ai-application.vercel.app) | Veeza AI (YC F26), AI tourist visa service | Plans and prepares tourist visa applications: requirement checklists from official sources, filled forms, cover letter, itinerary, document checks, appointment help and a reviewer packet. Encrypted on your device. | TypeScript, React, Vite |
 
 ## Layout
 
 ```
-aiwarden/          python package + browser extension   (cd aiwarden && pip install -e ".[dev]" && pytest)
+aiwarden/          python package, web console, browser extension   (cd aiwarden && pip install -e ".[dev]" && pytest)
 visa-navigator/    web app                               (cd visa-navigator && npm install && npm run dev)
 ```
 
@@ -28,7 +28,7 @@ CI runs each project's tests only when its folder changes (`.github/workflows/`)
 2. Write `docs/` research in the project folder: what the company ships, cited from public
    sources, and a parity checklist.
 3. Build it with tests, then verify it independently: run it end to end and try to break it.
-4. Add a row to the table above.
+4. Add a row to the table above, with a link to the deployed app.
 
 ## License
 

@@ -1,0 +1,11 @@
+web/node_modules
+web/dist
+web/e2e-out
+build
+src/*.egg-info
+**/__pycache__
+.pytest_cache
+tests
+extension
+docs
+pyproject.toml
