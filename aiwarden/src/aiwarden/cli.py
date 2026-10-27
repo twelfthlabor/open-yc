@@ -461,6 +461,7 @@ def cmd_check(args) -> int:
 
 
 def cmd_serve(args) -> int:
+    from .config import config_path, load_config, merge_teams
     from .server import Store, make_server
     env = _env(args)
     given = args.token or os.environ.get("AIWARDEN_TOKEN")
@@ -469,10 +470,14 @@ def cmd_serve(args) -> int:
     if args.local:
         from .report import build_report
         Store(db).add(build_report(env, processes=_processes(args)))
-    srv = make_server(args.host, args.port, db, token)
-    print(f"aiwarden collector on http://{args.host}:{srv.server_address[1]}/  db={db}", flush=True)
+    config = merge_teams(load_config(config_path(env)), load_config(Path(args.teams)) if args.teams else None)
+    srv = make_server(args.host, args.port, db, token, config=config)
+    url = f"http://{args.host}:{srv.server_address[1]}/"
+    print(f"aiwarden collector on {url}  db={db}", flush=True)
     if not given:
         print(f"token: {token}", flush=True)
+        # the console reads the token from the fragment, which browsers never send to the server
+        print(f"open:  {url}#token={token}", flush=True)
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -617,6 +622,7 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--db")
     s.add_argument("--token")
     s.add_argument("--local", action="store_true", help="ingest this device's report at startup")
+    s.add_argument("--teams", help="TOML file with a [teams] mapping, layered over ~/.aiwarden/config.toml")
     s.set_defaults(fn=cmd_serve)
 
     s = sub.add_parser("push", help="send this device's report to a collector")

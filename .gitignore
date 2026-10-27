@@ -9,3 +9,5 @@ __pycache__/
 *.db
 *.log
 .DS_Store
+e2e-out/
+.vercel

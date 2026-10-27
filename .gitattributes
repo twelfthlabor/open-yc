@@ -1,0 +1,3 @@
+# the console build is checked in; CI rebuilds it and compares, so sources and output must not change line endings
+aiwarden/web/** text=auto eol=lf
+aiwarden/src/aiwarden/static/app/** -text

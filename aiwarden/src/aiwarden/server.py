@@ -441,15 +441,110 @@ def aggregate(rows: list[tuple[str, dict]], browser_rows: dict | None = None) ->
     }
 
 
-def _dashboard_html() -> bytes:
-    return resources.files("aiwarden").joinpath("static/dashboard.html").read_bytes()
+_CTYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8",
+           ".woff2": "font/woff2", ".svg": "image/svg+xml", ".png": "image/png", ".ico": "image/x-icon",
+           ".json": "application/json", ".txt": "text/plain; charset=utf-8"}
+_NO_UI = b"<!doctype html><title>aiwarden</title><p>The web console is not built. Run <code>npm run build</code> in web/."
+API_MAX_BODY = 64 * 1024
+CSP = ("default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+       "object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 
 
-def make_server(host: str, port: int, db_path: Path, token: str, extension_ids=None) -> ThreadingHTTPServer:
+def ui_files() -> dict[str, tuple[bytes, str]]:
+    """URL path -> (body, content type) for the built console in static/app (web/ builds into it).
+    The server only ever serves paths from this map, so a request path is never joined onto the filesystem."""
+    root = resources.files("aiwarden").joinpath("static/app")
+    out: dict[str, tuple[bytes, str]] = {}
+
+    def walk(node, prefix):
+        for child in node.iterdir():
+            if child.is_dir():
+                walk(child, f"{prefix}{child.name}/")
+            elif child.is_file():
+                ext = "." + child.name.rsplit(".", 1)[-1].lower() if "." in child.name else ""
+                if ext in _CTYPES:
+                    out[f"/{prefix}{child.name}"] = (child.read_bytes(), _CTYPES[ext])
+
+    if root.is_dir():
+        walk(root, "")
+    index = out.pop("/index.html", None)
+    out["/"] = index or (_NO_UI, _CTYPES[".html"])
+    return out
+
+
+def _reports(store: "Store") -> list[dict]:
+    return [r for _, r in store.latest() if valid_report(r)]
+
+
+def _as_of(query: str) -> str | None:
+    from urllib.parse import parse_qs
+    v = (parse_qs(query).get("as_of") or [None])[0]
+    if v is not None and not _DAY.match(v):
+        raise ValueError("as_of must be YYYY-MM-DD")
+    return v
+
+
+def api_rules() -> dict:
+    from .mcpscan import RULES as MCPX
+    from .policy import RULES as GRD
+    return {"guard": [{"id": k, "action": a, "description": d} for k, (a, d) in GRD.items()],
+            "mcp_scan": [{"id": k, "severity": s, "description": d} for k, (s, d) in MCPX.items()]}
+
+
+def api_check(body) -> dict:
+    """Dry-run one tool call against the built-in policy (the console's rule tester). Raises ValueError on bad input."""
+    from .agents import AGENTS, evaluate_agent
+    if not isinstance(body, dict):
+        raise ValueError("expected a JSON object")
+    agent, tool, inp = body.get("agent", "claude-code"), body.get("tool"), body.get("input")
+    if agent not in AGENTS:
+        raise ValueError(f"agent must be one of {', '.join(AGENTS)}")
+    if not isinstance(tool, str) or not 0 < len(tool) <= 200:
+        raise ValueError("tool must be a tool name")
+    if not isinstance(inp, dict):
+        raise ValueError("input must be a JSON object (the tool's arguments)")
+    return evaluate_agent(agent, tool, inp).to_dict()
+
+
+def api_ask(body, reports: list[dict], config: dict) -> dict:
+    """Question or structured query over the fleet. The parser runs locally; LLM translation only when the
+    collector was started with AIWARDEN_ASK_LLM=1 (the question text, never fleet data, goes to the API)."""
+    from datetime import date
+    from .fleetdata import build_facts
+    from .query import run_query, translate, validate_query
+    if not isinstance(body, dict):
+        raise ValueError("expected a JSON object")
+    as_of = body.get("as_of") or date.today().isoformat()
+    if not isinstance(as_of, str) or not _DAY.match(as_of):
+        raise ValueError("as_of must be YYYY-MM-DD")
+    if "query" in body:
+        query, how = validate_query(body["query"]), "structured"
+    else:
+        q = body.get("question")
+        if not isinstance(q, str) or not q.strip() or len(q) > 500:
+            raise ValueError("question must be 1-500 characters")
+        mode = "auto" if os.environ.get("AIWARDEN_ASK_LLM") == "1" else "parser"
+        query, how = translate(q.strip(), as_of, mode)
+        if query is None:
+            raise ValueError("could not understand the question; try one of the suggested forms")
+    return {"query": query, "translated_by": how, "result": run_query(query, build_facts(reports, config), as_of)}
+
+
+def make_server(host: str, port: int, db_path: Path, token: str, extension_ids=None,
+                config: dict | None = None) -> ThreadingHTTPServer:
     """extension_ids: optional allowlist of Chrome/Edge extension ids that may call /api/browser-events from a
-    browser (CORS). Defaults to $AIWARDEN_EXTENSION_IDS (comma separated); empty means any chrome-extension:// origin."""
-    store = Store(db_path)
-    page = _dashboard_html()
+    browser (CORS). Defaults to $AIWARDEN_EXTENSION_IDS (comma separated); empty means any chrome-extension:// origin.
+    config: team mapping / prices / alert thresholds used by ask, weekly and alerts (see config.py)."""
+    handler = make_handler(Store(db_path), token, extension_ids, config, ui_files())
+    return ThreadingHTTPServer((host, port), handler)
+
+
+def make_handler(store: Store, token: str, extension_ids=None, config: dict | None = None,
+                 files: dict[str, tuple[bytes, str]] | None = None, read_only: bool = False) -> type[BaseHTTPRequestHandler]:
+    """The collector's request handler. files: the console to serve (none where a host serves it statically).
+    read_only: refuse uploads (reports, browser events), for the public demo."""
+    files = files if files is not None else {}
+    config = config or {}
     if extension_ids is None:
         extension_ids = [x.strip() for x in os.environ.get("AIWARDEN_EXTENSION_IDS", "").split(",") if x.strip()]
     allowed_ext = frozenset(extension_ids)
@@ -468,7 +563,9 @@ def make_server(host: str, port: int, db_path: Path, token: str, extension_ids=N
 
         def do_HEAD(self):
             path = self.path.split("?", 1)[0]
-            self._send(200 if path in ("/", "/index.html", "/healthz") else 404, b"", "text/html; charset=utf-8")
+            path = "/" if path == "/index.html" else path
+            hit = files.get(path)
+            self._send(200 if hit or path == "/healthz" else 404, b"", hit[1] if hit else "text/html; charset=utf-8")
 
         def _send(self, code: int, body: bytes, ctype: str = "application/json", extra: dict | None = None) -> None:
             self.send_response(code)
@@ -479,11 +576,11 @@ def make_server(host: str, port: int, db_path: Path, token: str, extension_ids=N
             self.send_header("Content-Length", str(len(body)))
             self.send_header("X-Content-Type-Options", "nosniff")
             self.send_header("Cache-Control", "no-store")
-            self.send_header("Content-Security-Policy",
-                             "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; "
-                             "img-src 'self' data:; frame-ancestors 'none'")
+            self.send_header("Content-Security-Policy", CSP)
+            self.send_header("Referrer-Policy", "no-referrer")
             self.end_headers()
-            self.wfile.write(body)
+            if self.command != "HEAD":
+                self.wfile.write(body)
 
         def _json(self, code: int, obj) -> None:
             self._send(code, json.dumps(obj).encode())
@@ -496,15 +593,33 @@ def make_server(host: str, port: int, db_path: Path, token: str, extension_ids=N
             return ok
 
         def do_GET(self):
-            path = self.path.split("?", 1)[0]
-            if path in ("/", "/index.html"):
-                return self._send(200, page, "text/html; charset=utf-8")
+            path, _, query = self.path.partition("?")
+            path = "/" if path == "/index.html" else path
+            if path in files:
+                body, ctype = files[path]
+                return self._send(200, body, ctype)
             if path == "/healthz":
                 return self._json(200, {"ok": True})
+            if not path.startswith("/api/"):
+                return self._json(404, {"error": "not found"})
             if not self._authed():
                 return
             if path == "/api/fleet":
                 return self._json(200, aggregate(store.latest(), store.browser_rows()))
+            if path == "/api/rules":
+                return self._json(200, api_rules())
+            if path in ("/api/weekly", "/api/alerts"):
+                try:
+                    as_of = _as_of(query)
+                except ValueError as e:
+                    return self._json(422, {"error": str(e)})
+                if path == "/api/weekly":
+                    from .weekly import build_weekly
+                    return self._json(200, build_weekly(_reports(store), config, as_of))
+                from .alerts import evaluate_alerts
+                # Preview: everything currently true, with no saved state. The `aiwarden alerts` job owns delivery.
+                alerts, _ = evaluate_alerts(_reports(store), config, None, as_of, alert_existing=True)
+                return self._json(200, {"alerts": alerts})
             m = re.fullmatch(r"/api/devices/([A-Za-z0-9_\-]{1,64})", path)
             if m:
                 rep = store.device(m.group(1))
@@ -557,10 +672,27 @@ def make_server(host: str, port: int, db_path: Path, token: str, extension_ids=N
                 return self._json(422, {"error": why})
             self._json(200, {"ok": True, "accepted": store.add_browser(batch)})
 
+        def _post_api(self, fn):
+            if not self._authed():
+                return
+            body, ok = self._read_json(API_MAX_BODY)
+            if not ok:
+                return
+            try:
+                return self._json(200, fn(body))
+            except (ValueError, TypeError, KeyError) as e:  # malformed input deep in a query is still bad input
+                return self._json(422, {"error": str(e)[:300]})
+
         def do_POST(self):
             path = self.path.split("?", 1)[0]
+            if read_only and path in (BROWSER_PATH, "/api/reports"):
+                return self._json(403, {"error": "this collector is read-only"})
             if path == BROWSER_PATH:
                 return self._post_browser()
+            if path == "/api/check":
+                return self._post_api(api_check)
+            if path == "/api/ask":
+                return self._post_api(lambda b: api_ask(b, _reports(store), config))
             if path != "/api/reports":
                 return self._json(404, {"error": "not found"})
             if not self._authed():
@@ -580,7 +712,7 @@ def make_server(host: str, port: int, db_path: Path, token: str, extension_ids=N
             store.add(report)
             self._json(200, {"ok": True, "device_id": report["device"]["id"]})
 
-    return ThreadingHTTPServer((host, port), Handler)
+    return Handler
 
 
 def push_report(server_url: str, token: str, report: dict, timeout: float = 30) -> dict:

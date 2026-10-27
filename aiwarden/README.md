@@ -15,7 +15,7 @@ git clone <this repo> && cd aiwarden
 pip install .                   # not on PyPI yet; add [proc] for psutil-based process discovery
 aiwarden scan                   # inventory + posture findings + usage on this machine
 aiwarden hooks install --agent all   # block destructive agent actions in Claude Code, Gemini CLI and Codex
-aiwarden serve --local          # dashboard at http://127.0.0.1:8765
+aiwarden serve --local          # web console: open the link it prints
 ```
 
 ## What it does
@@ -32,7 +32,7 @@ aiwarden serve --local          # dashboard at http://127.0.0.1:8765
 | **Prevent** | Pre-tool hooks for Claude Code (`PreToolUse`), Gemini CLI (`BeforeTool`) and Codex (`PreToolUse`) that block (Claude Code can also ask) before an agent runs `rm -rf ~`, `DROP DATABASE`, `git push --force origin main` or `curl … \| sh`, reads `~/.ssh/id_*`, or writes an API key into source. |
 | **Browser DLP** | A Chrome/Edge extension (`extension/`) warns or blocks before secrets, card numbers, SSNs/SINs, bulk emails or customer lists are typed, pasted, dropped or uploaded into ChatGPT, Claude, Gemini, Copilot, Perplexity, DeepSeek and other AI chat sites, and records which AI sites are used and for how long. |
 | **Graph** | One graph per device connects user, device, apps, MCP servers, packages, remote hosts, models, skills and extensions, with findings attached to the nodes they concern. |
-| **Fleet** | `aiwarden push` sends the report to a self-hosted collector (`aiwarden serve`). The dashboard shows devices, findings, MCP packages across the fleet, token usage and guard decisions. |
+| **Fleet** | `aiwarden push` sends the report to a self-hosted collector (`aiwarden serve`). The web console shows devices, findings, MCP packages across the fleet, token usage, guard decisions, alerts and the weekly report. |
 
 ## Privacy model
 
@@ -299,8 +299,42 @@ AIWARDEN_TOKEN=change-me aiwarden push --server https://aiwarden.internal:8765 -
 ```
 
 The collector is stdlib Python with SQLite. It keeps the last 20 reports per device. Every
-API route needs the bearer token. The dashboard escapes every value it renders, because
-report contents come from endpoints.
+API route needs the bearer token. Report contents come from endpoints, so the console renders
+every value as text and the collector serves it with a strict Content-Security-Policy (no inline
+scripts or styles, no third-party origins).
+
+## Web console
+
+**Live demo: https://aiwarden-gamma.vercel.app** (six made-up laptops, read-only)
+
+![Overview](docs/screenshots/overview.png)
+
+`aiwarden serve` serves a web console from the same port. It prints a link ending in
+`#token=...`; the token stays in the URL fragment, which browsers never send to the server, and
+the console removes it from the address bar after reading it.
+
+| Page | What it shows |
+|---|---|
+| Overview | One sentence on the fleet's state, 30-day token trend, top findings, agents and models, recent guard decisions |
+| Ask | Plain-English questions over the fleet (`aiwarden ask` in the browser), with the structured query it ran |
+| Findings | Every finding, filterable by severity and text, linked to its device |
+| Alerts | Everything the alert rules would raise right now |
+| Devices / device | Per-device inventory and an interactive relationship map (drag, zoom, select) of apps, MCP servers, packages, hosts, models and skills |
+| MCP servers | Servers grouped by package or URL across the fleet, and the tool-poisoning scan rules |
+| Browser | AI sites used and what the extension's DLP caught |
+| Usage | Daily input/output tokens, spend by agent, per-model table |
+| Guard | Decisions, the rule catalogue with hit counts, and a tester that shows what the guard decides for a command (nothing is run) |
+| Weekly report | The weekly report, printable |
+
+Press Ctrl K (⌘K on a Mac) for the command menu. Light, dark and system themes are built in.
+
+![Device relationship map](docs/screenshots/device-dark.png)
+
+The console adds these read-only routes (bearer token required): `GET /api/rules`,
+`GET /api/weekly?as_of=`, `GET /api/alerts?as_of=`, `POST /api/ask` (`{"question": ...}` or
+`{"query": {...}}`) and `POST /api/check` (`{"agent", "tool", "input"}`, dry run against the
+built-in rules). Ask uses the local parser; set `AIWARDEN_ASK_LLM=1` and `ANTHROPIC_API_KEY` on
+the collector to translate free-form questions with Claude (only the question text is sent).
 
 ## Commands
 
@@ -316,7 +350,7 @@ aiwarden mcp-scan [--connect --name N | --connect --all --yes] [--tools-file F] 
 aiwarden ask "QUESTION" | --query JSON  [--server URL --token T | --report FILE] [--teams FILE] [--as-of DATE]
 aiwarden alerts [--webhook URL] [--dry-run] [--json]  [same source options]
 aiwarden report weekly [--format md|html|json] [--out FILE]  [same source options]
-aiwarden serve [--local] [--host H] [--port P] [--token T]
+aiwarden serve [--local] [--host H] [--port P] [--token T] [--teams FILE]
 aiwarden push --server URL [--token T]
 ```
 
@@ -329,6 +363,24 @@ image or a test fixture.
 pip install -e ".[dev]"
 pytest
 ```
+
+The web console lives in `web/` (React, TypeScript, Vite). Its build is checked in under
+`src/aiwarden/static/app`, so installing aiwarden needs no Node.
+
+```
+cd web
+npm ci
+npm run demo          # collector with a synthetic six-device fleet on :8765
+npm run dev           # console with hot reload; /api is proxied to :8765
+npm test              # unit tests
+npm run build         # rebuild src/aiwarden/static/app (commit the result)
+npm run e2e           # drives Chromium through every page against the demo collector
+```
+
+The hosted demo is this folder deployed to Vercel (`vercel.json`). `npm run build:demo` builds the
+console with the demo's public token, and `api/index.py` runs the real collector handler, read-only,
+over the synthetic fleet in `src/aiwarden/demo.py`. Ask, the guard tester, alerts and the weekly report
+are computed live; uploads are refused.
 
 The tests build a synthetic home directory with the config and transcript layouts of each
 supported tool (`tests/conftest.py`). No real user data is read.
