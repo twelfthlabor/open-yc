@@ -61,6 +61,10 @@ export function CommandMenu({ open, onOpenChange, fleet, onTheme }: Props) {
                 <Command.Item key={n.path} value={`page ${n.label}`} onSelect={() => run(() => go(n.path))}>
                   <n.icon size={16} />
                   {n.label}
+                  <span className="hint keys" aria-hidden="true">
+                    <kbd>g</kbd>
+                    <kbd>{n.key}</kbd>
+                  </span>
                 </Command.Item>
               ))}
             </Command.Group>

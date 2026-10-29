@@ -1,11 +1,13 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LogOut, Menu, Monitor, Moon, RefreshCw, Search, Sun } from "lucide-react";
 import { DEMO_TOKEN } from "../lib/api";
 import { ago } from "../lib/format";
-import { href } from "../lib/router";
+import { go, href } from "../lib/router";
+import { SEQUENCE_MS, shortcut } from "../lib/shortcuts";
 import type { Fleet } from "../lib/types";
 import { CommandMenu } from "./CommandMenu";
 import { NAV } from "./nav";
+import { ShortcutHelp } from "./ShortcutHelp";
 
 export type Theme = "system" | "light" | "dark";
 
@@ -35,19 +37,34 @@ const THEME_ICON = { system: Monitor, light: Sun, dark: Moon };
 export function Shell({ current, fleet, theme, onTheme, onRefresh, onSignOut, children }: Props) {
   const [palette, setPalette] = useState(false);
   const [drawer, setDrawer] = useState(false);
+  const [help, setHelp] = useState(false);
+  const pending = useRef({ key: "", at: 0 });
+  const overlayOpen = palette || help;
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPalette((v) => !v);
-      } else if (e.key === "/" && !/input|textarea|select/i.test((e.target as HTMLElement)?.tagName || "")) {
+        return;
+      }
+      if (overlayOpen || e.defaultPrevented) return;
+      if (e.key === "/" && !/input|textarea|select/i.test((e.target as HTMLElement)?.tagName || "")) {
         e.preventDefault();
         setPalette(true);
+        return;
       }
+      const p = pending.current;
+      const prev = p.key && Date.now() - p.at < SEQUENCE_MS ? p.key : "";
+      const s = shortcut({ key: e.key, prev, target: e.target, mod: e.metaKey || e.ctrlKey || e.altKey });
+      pending.current = s && "pending" in s ? { key: s.pending, at: Date.now() } : { key: "", at: 0 };
+      if (!s) return;
+      e.preventDefault();
+      if ("go" in s) go(s.go);
+      else if ("help" in s) setHelp(true);
     };
     window.addEventListener("keydown", key);
     return () => window.removeEventListener("keydown", key);
-  }, []);
+  }, [overlayOpen]);
   useEffect(() => setDrawer(false), [current]);
 
   const t = fleet?.totals;
@@ -84,7 +101,7 @@ export function Shell({ current, fleet, theme, onTheme, onRefresh, onSignOut, ch
             return (
               <div key={n.path} style={{ display: "contents" }}>
                 {head}
-                <a href={href(n.path)} aria-current={current === n.path ? "page" : undefined}>
+                <a href={href(n.path)} aria-current={current === n.path ? "page" : undefined} title={`${n.label} (g then ${n.key})`}>
                   <n.icon size={16} strokeWidth={1.9} />
                   {n.label}
                   {c && c.n > 0 && <span className={`count${c.hot ? " hot" : ""}`}>{c.n}</span>}
@@ -136,6 +153,7 @@ export function Shell({ current, fleet, theme, onTheme, onRefresh, onSignOut, ch
           {children}
         </main>
       </div>
+      <ShortcutHelp open={help} onClose={() => setHelp(false)} />
       <CommandMenu open={palette} onOpenChange={setPalette} fleet={fleet} onTheme={() => onTheme(NEXT[theme])} />
     </div>
   );

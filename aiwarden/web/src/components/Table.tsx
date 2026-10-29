@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 
 export interface Column<T> {
@@ -16,13 +16,17 @@ interface Props<T> {
   rows: T[];
   rowKey: (row: T, i: number) => string;
   onRow?: (row: T) => void;
+  /** highlights the row open in a side panel */
+  active?: (row: T) => boolean;
+  /** receives the rows in display order whenever sorting or the rows change */
+  onOrder?: (rows: T[]) => void;
   initialSort?: { key: string; dir: "asc" | "desc" };
   limit?: number;
   label: string;
   empty?: ReactNode;
 }
 
-export function DataTable<T>({ columns, rows, rowKey, onRow, initialSort, limit, label, empty }: Props<T>) {
+export function DataTable<T>({ columns, rows, rowKey, onRow, active, onOrder, initialSort, limit, label, empty }: Props<T>) {
   const [sort, setSort] = useState(initialSort);
   const [showAll, setShowAll] = useState(false);
   const sorted = useMemo(() => {
@@ -36,6 +40,7 @@ export function DataTable<T>({ columns, rows, rowKey, onRow, initialSort, limit,
     });
     return sort!.dir === "desc" ? out.reverse() : out;
   }, [rows, sort, columns]);
+  useEffect(() => onOrder?.(sorted), [sorted, onOrder]);
   const visible = limit && !showAll ? sorted.slice(0, limit) : sorted;
   if (!rows.length) return <>{empty}</>;
   return (
@@ -67,7 +72,8 @@ export function DataTable<T>({ columns, rows, rowKey, onRow, initialSort, limit,
           {visible.map((r, i) => (
             <tr
               key={rowKey(r, i)}
-              className={onRow ? "link" : undefined}
+              className={[onRow ? "link" : "", active?.(r) ? "active" : ""].join(" ").trim() || undefined}
+              aria-current={active?.(r) ? "true" : undefined}
               tabIndex={onRow ? 0 : undefined}
               onClick={onRow ? () => onRow(r) : undefined}
               onKeyDown={onRow ? (e) => (e.key === "Enter" || e.key === " ") && (e.preventDefault(), onRow(r)) : undefined}

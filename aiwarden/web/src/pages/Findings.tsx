@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { Search } from "lucide-react";
 import { SevBar } from "../components/Charts";
+import { FindingPeek, findingId } from "../components/FindingPeek";
 import { DataTable } from "../components/Table";
 import { Empty, PageHead, Seg, Sev } from "../components/ui";
 import { go } from "../lib/router";
@@ -17,14 +18,26 @@ function matches(f: Finding, level: Level): boolean {
 }
 const RANK: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3, info: 4 };
 
-export function FindingsTable({ rows, showDevice = true, limit }: { rows: Finding[]; showDevice?: boolean; limit?: number }) {
+interface TableProps {
+  rows: Finding[];
+  showDevice?: boolean;
+  limit?: number;
+  /** open a row in the side panel instead of jumping to its device */
+  onOpen?: (f: Finding) => void;
+  openId?: string | null;
+  onOrder?: (rows: Finding[]) => void;
+}
+
+export function FindingsTable({ rows, showDevice = true, limit, onOpen, openId, onOrder }: TableProps) {
   return (
     <DataTable<Finding>
       label="Findings"
       rows={rows}
       rowKey={(f, i) => `${f.device_id}-${f.rule}-${i}`}
       limit={limit}
-      onRow={showDevice ? (f) => f.device_id && go(`devices/${f.device_id}`) : undefined}
+      onRow={onOpen || (showDevice ? (f) => f.device_id && go(`devices/${f.device_id}`) : undefined)}
+      active={openId ? (f) => findingId(f) === openId : undefined}
+      onOrder={onOrder}
       initialSort={{ key: "severity", dir: "asc" }}
       empty={<Empty title="No findings match">Clear the filters to see everything.</Empty>}
       columns={[
@@ -51,6 +64,32 @@ export function FindingsTable({ rows, showDevice = true, limit }: { rows: Findin
 export function Findings({ fleet, params }: { fleet: Fleet; params: URLSearchParams }) {
   const [level, setLevel] = useState<Level>(FROM_PARAM[params.get("sev") || ""] || "all");
   const [q, setQ] = useState("");
+  const [order, setOrderRaw] = useState<Finding[]>([]);
+  // keep the old array when nothing moved, so reporting the order does not re-render the page
+  const setOrder = useCallback(
+    (next: Finding[]) => setOrderRaw((prev) => (prev.length === next.length && prev.every((x, i) => x === next[i]) ? prev : next)),
+    [],
+  );
+  const openId = params.get("f");
+  // Opening pushes a history entry so Back closes the panel; stepping with j/k replaces it.
+  const pushed = useRef(false);
+  const setOpen = useCallback(
+    (id: string | null) => {
+      if (!id && pushed.current) {
+        pushed.current = false;
+        history.back();
+        return;
+      }
+      const next = Object.fromEntries(params);
+      if (id) next.f = id;
+      else delete next.f;
+      const replace = !id || !!params.get("f");
+      if (!replace) pushed.current = true;
+      go("findings", next, { replace });
+    },
+    [params],
+  );
+  const close = useCallback(() => setOpen(null), [setOpen]);
   const rows = useMemo(() => {
     const needle = q.trim().toLowerCase();
     return fleet.findings.filter(
@@ -72,7 +111,8 @@ export function Findings({ fleet, params }: { fleet: Fleet; params: URLSearchPar
           {rows.length} of {fleet.findings.length}
         </span>
       </div>
-      <FindingsTable rows={rows} />
+      <FindingsTable rows={rows} onOpen={(f) => setOpen(findingId(f))} openId={openId} onOrder={setOrder} />
+      <FindingPeek rows={order.length ? order : rows} id={openId} onClose={close} onMove={setOpen} />
     </>
   );
 }

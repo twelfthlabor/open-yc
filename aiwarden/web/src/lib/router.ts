@@ -29,8 +29,15 @@ export function href(path: string, params?: Record<string, string | undefined>):
   return `#/${path.replace(/^\//, "")}${s ? `?${s}` : ""}`;
 }
 
-export function go(path: string, params?: Record<string, string | undefined>) {
-  window.location.hash = href(path, params);
+export function go(path: string, params?: Record<string, string | undefined>, opts?: { replace?: boolean }) {
+  const next = href(path, params);
+  if (!opts?.replace) {
+    window.location.hash = next;
+    return;
+  }
+  // replaceState does not fire hashchange, so tell useRoute ourselves
+  history.replaceState(history.state, "", next);
+  window.dispatchEvent(new HashChangeEvent("hashchange"));
 }
 
 export function useRoute(): Route {

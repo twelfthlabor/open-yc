@@ -1,11 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, fireEvent, render } from "@testing-library/react";
+import { shortcut } from "./lib/shortcuts";
+import { FindingPeek, findingId } from "./components/FindingPeek";
 import { ago, compact, pct, usd } from "./lib/format";
 import { href, parseHash } from "./lib/router";
 import { adoptTokenFromHash, tokenStore } from "./lib/api";
 import { dailySeries } from "./components/Charts";
 import { fitView, layout, RelationshipGraph } from "./components/Graph";
-import { FindingsTable } from "./pages/Findings";
+import { Profiler } from "react";
+import { Findings, FindingsTable } from "./pages/Findings";
 import { Overview } from "./pages/Overview";
 import type { Fleet } from "./lib/types";
 
@@ -106,5 +109,62 @@ describe("untrusted report text", () => {
     } as unknown as Fleet;
     const { container } = render(<Overview fleet={fleet} />);
     expect(container.querySelector("h1")!.textContent).toBe("1 device runs 1 AI app and 0 MCP servers. 1 high-risk finding needs attention.");
+  });
+});
+
+describe("keyboard shortcuts", () => {
+  it("maps g-sequences to pages and ignores typing in fields", () => {
+    const t = (key: string, prev = "", tag = "BODY", mod = false) => shortcut({ key, prev, target: { tagName: tag, isContentEditable: false } as unknown as EventTarget, mod });
+    expect(t("g")).toEqual({ pending: "g" });
+    expect(t("f", "g")).toEqual({ go: "findings" });
+    expect(t("o", "g")).toEqual({ go: "" });
+    expect(t("d", "g")).toEqual({ go: "devices" });
+    expect(t("?")).toEqual({ help: true });
+    expect(t("f")).toBeNull();
+    expect(t("f", "g", "INPUT")).toBeNull();
+    expect(t("g", "", "TEXTAREA")).toBeNull();
+    expect(t("f", "g", "BODY", true)).toBeNull();
+  });
+});
+
+describe("finding peek", () => {
+  const rows = [
+    { rule: "MCP001", severity: "high", title: "Plaintext token", detail: "Move it to the OS keychain", location: "~/.claude.json", hostname: "build-01", device_id: "d1" },
+    { rule: "MCP001", severity: "high", title: "Plaintext token", location: "~/.cursor/mcp.json", hostname: "maya-mbp", device_id: "d2" },
+    { rule: "AGT001", severity: "medium", title: "Bash allowed", hostname: "build-01", device_id: "d1" },
+  ];
+  it("gives each finding a stable id", () => {
+    expect(findingId(rows[0])).toBe(findingId({ ...rows[0] }));
+    expect(new Set(rows.map(findingId)).size).toBe(3);
+  });
+  it("shows the finding, its device and the same rule elsewhere, and closes on Escape", () => {
+    let closed = 0;
+    let moved: string | null = null;
+    const { getByRole } = render(<FindingPeek rows={rows} id={findingId(rows[0])} onClose={() => closed++} onMove={(id) => (moved = id)} />);
+    const dlg = getByRole("dialog", { name: "Finding details" });
+    expect(dlg.textContent).toContain("Plaintext token");
+    expect(dlg.textContent).toContain("Move it to the OS keychain");
+    expect(dlg.querySelector("a[href='#/devices/d1']")).not.toBeNull();
+    expect(dlg.textContent).toContain("maya-mbp"); // same rule on another device
+    expect(dlg.querySelector("tr")).toBeNull(); // never adds rows the findings-table selectors would count
+    fireEvent.keyDown(window, { key: "j" });
+    expect(moved).toBe(findingId(rows[1]));
+    fireEvent.keyDown(window, { key: "Escape" });
+    expect(closed).toBe(1);
+  });
+  it("findings page settles instead of re-rendering forever", async () => {
+    let commits = 0;
+    const fleet = { findings: rows, totals: { findings: { high: 2, medium: 1 } } } as unknown as Fleet;
+    render(
+      <Profiler id="f" onRender={() => commits++}>
+        <Findings fleet={fleet} params={new URLSearchParams()} />
+      </Profiler>,
+    );
+    await new Promise((r) => setTimeout(r, 50));
+    expect(commits).toBeLessThan(5);
+  });
+  it("renders nothing for an unknown id", () => {
+    const { container } = render(<FindingPeek rows={rows} id="nope" onClose={() => {}} onMove={() => {}} />);
+    expect(container.innerHTML).toBe("");
   });
 });

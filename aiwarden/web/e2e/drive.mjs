@@ -131,6 +131,30 @@ try {
   check("findings text filter", (await page.locator("table[aria-label='Findings'] tbody tr").count()) === 3);
   await page.screenshot({ path: join(OUT, "findings-light.png"), fullPage: true });
 
+  // 3b. finding peek: open a row, step with j, close with Escape; filters survive
+  await findingRows.first().click();
+  const peek = page.getByRole("dialog", { name: "Finding details" });
+  await peek.waitFor();
+  check("finding row opens the side panel", (await peek.locator(".peek-pos").textContent())?.trim() === "1 / 3");
+  check("peek links to the device", (await peek.locator("a[href^='#/devices/']").count()) === 1);
+  await page.keyboard.press("j");
+  await page.waitForFunction(() => document.querySelector(".peek-pos")?.textContent?.trim() === "2 / 3", null, { timeout: 3000 }).catch(() => {});
+  check("j moves to the next finding", (await peek.locator(".peek-pos").textContent())?.trim() === "2 / 3");
+  await page.screenshot({ path: join(OUT, "findings-peek.png") });
+  await page.keyboard.press("Escape");
+  await peek.waitFor({ state: "detached", timeout: 3000 }).catch(() => {});
+  check("Escape closes the panel and keeps the filter", (await peek.count()) === 0 && (await findingRows.count()) === 3);
+
+  // 3c. g-shortcuts and the shortcut list
+  await page.locator("body").click({ position: { x: 5, y: 5 } }); // focus out of the filter field
+  await page.keyboard.press("g");
+  await page.keyboard.press("u");
+  await page.waitForFunction(() => location.hash === "#/usage", null, { timeout: 3000 }).catch(() => {});
+  check("g then u opens Usage", (await page.evaluate(() => location.hash)) === "#/usage");
+  await page.keyboard.press("Shift+Slash");
+  check("? lists the shortcuts", await page.getByRole("dialog", { name: "Keyboard shortcuts" }).isVisible());
+  await page.keyboard.press("Escape");
+
   // 4. ask
   await page.goto(`${demo.url}/#/ask`);
   await page.getByRole("button", { name: "top 5 users by cost" }).click();
@@ -199,6 +223,14 @@ try {
     const o2 = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     check("guard page fits at 375px", o2 <= 0, `${o2}px`);
     await p.screenshot({ path: join(OUT, "guard-mobile.png"), fullPage: true });
+    await p.goto(`${demo.url}/#/findings`);
+    await p.locator("table[aria-label='Findings'] tbody tr").first().click();
+    const mp = p.getByRole("dialog", { name: "Finding details" });
+    await mp.waitFor();
+    await p.waitForTimeout(400); // slide-in
+    const box = await mp.boundingBox();
+    check("finding panel fits at 375px", !!box && box.x >= 0 && box.x + box.width <= 375, box ? `${Math.round(box.x)}..${Math.round(box.x + box.width)}` : "no box");
+    await p.screenshot({ path: join(OUT, "findings-peek-mobile.png") });
     await m.close();
   }
 
