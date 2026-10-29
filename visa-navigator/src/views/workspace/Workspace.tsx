@@ -1,6 +1,6 @@
 import { ArrowLeft, BadgeCheck, BellRing, CalendarClock, ClipboardCheck, FileCheck2, FilePenLine, LayoutDashboard, Mail, Map, Trash2, Users } from 'lucide-react';
 import { AnimatePresence, motion } from 'motion/react';
-import { useMemo, useState, type ComponentType } from 'react';
+import { useEffect, useMemo, useRef, useState, type ComponentType } from 'react';
 import { GlassCard, ProgressRing } from '@/components/app/bits';
 import { Button } from '@/components/ui/button';
 import { countryName } from '@/data/countries';
@@ -10,7 +10,7 @@ import { resolveRoute } from '@/rules/engine';
 import { PURPOSE_LABELS, type Route } from '@/rules/types';
 import { useVault } from '@/state/VaultContext';
 import type { Trip } from '@/store/model';
-import { RouteSummary } from '../RouteSummary';
+import { RouteHeadline, RouteSummary } from '../RouteSummary';
 import { Appointment } from './Appointment';
 import { Documents } from './Documents';
 import { ExpertReview } from './ExpertReview';
@@ -48,6 +48,22 @@ export function Workspace({ tripId, onBack }: { tripId: string; onBack: () => vo
   const route = useMemo(() => (trip ? resolveRoute(trip.input) : null), [trip]);
   const [section, setSection] = useState<SectionId>('overview');
   const [confirmDelete, setConfirmDelete] = useState(false);
+  // The full visa summary and globe lead the Overview; other sections get a one-line headline,
+  // so their content starts above the fold. The summary stays one click away.
+  const [details, setDetails] = useState(false);
+  const body = useRef<HTMLElement>(null);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) {
+      first.current = false;
+      return;
+    }
+    setDetails(false);
+    // switching sections from far down the page would otherwise leave you mid-way through the new one;
+    // with the one-line headline the whole top of the workspace fits, so go back to the top
+    const el = body.current;
+    if (el && el.getBoundingClientRect().top < 80) window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, [section]);
 
   if (!trip || !route) {
     return (
@@ -65,6 +81,7 @@ export function Workspace({ tripId, onBack }: { tripId: string; onBack: () => vo
   const ids: SectionId[] = ['overview', ...route.features.flatMap((f): SectionId[] => (f === 'review' ? ['review', 'expert_review'] : [f]))];
   const Panel = SECTIONS[section].panel;
   const pct = tripProgress(trip, route);
+  const full = section === 'overview' || details;
 
   return (
     <>
@@ -72,21 +89,22 @@ export function Workspace({ tripId, onBack }: { tripId: string; onBack: () => vo
         <Button variant="ghost" size="sm" className="w-fit" onClick={onBack}>
           <ArrowLeft /> All applications
         </Button>
-        <section className="grid items-center gap-5 md:grid-cols-[1fr_15rem]">
-          <GlassCard className="grid gap-4">
-            <div className="flex items-start justify-between gap-3">
+        <section className={cn('grid items-center gap-5', full && 'md:grid-cols-[1fr_15rem]')}>
+          <GlassCard className={cn('grid', full ? 'gap-4' : 'gap-2 py-4 sm:py-4')}>
+            <div className="flex items-center justify-between gap-3">
               <div className="text-xs text-muted-foreground">
                 {countryName(trip.input.nationality)} passport → {countryName(trip.input.destination)} · {PURPOSE_LABELS[trip.input.purpose]} · {trip.travellers.length}{' '}
                 traveller{trip.travellers.length > 1 ? 's' : ''}
               </div>
-              <ProgressRing value={pct} label={`${Math.round(pct * 100)}% ready`} />
+              <ProgressRing value={pct} size={full ? 56 : 40} label={`${Math.round(pct * 100)}% ready`} />
             </div>
-            <RouteSummary route={route} compact />
+            {section !== 'overview' && <RouteHeadline route={route} expanded={details} onToggle={() => setDetails((v) => !v)} />}
+            {full && <RouteSummary route={route} compact headless={section !== 'overview'} />}
           </GlassCard>
-          <GlobeSlot from={trip.input.nationality} to={trip.input.destination} className="hidden md:block" />
+          {full && <GlobeSlot from={trip.input.nationality} to={trip.input.destination} className="hidden md:block" />}
         </section>
 
-        <section className="grid items-start gap-5 md:grid-cols-[15rem_1fr]">
+        <section ref={body} className="grid items-start gap-5 md:grid-cols-[15rem_1fr]">
           <nav aria-label="Application sections" className="glass flex gap-1 overflow-x-auto rounded-2xl p-2 md:sticky md:top-24 md:flex-col">
             {ids.map((id) => {
               const s = SECTIONS[id];

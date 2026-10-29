@@ -56,7 +56,7 @@ export function Home({ onNew, onOpen }: { onNew: (destination?: string) => void;
             </ShimmerButton>
             <span className="text-sm text-muted-foreground">No account, no fees.</span>
           </div>
-          <div className="mt-8 flex flex-wrap gap-6 text-sm">
+          <div className="mt-8 grid max-w-xl grid-cols-3 gap-4 text-sm sm:gap-6">
             <div>
               <div className="font-heading text-2xl font-semibold tabular-nums">
                 <NumberTicker value={SCHENGEN_ANNEX_I.size} />
@@ -84,7 +84,8 @@ export function Home({ onNew, onOpen }: { onNew: (destination?: string) => void;
 
       <section aria-hidden="true" className="grid min-w-0 gap-3 overflow-hidden -mx-4 sm:-mx-6">
         <p className="text-center text-xs font-medium tracking-widest text-muted-foreground uppercase">Passports that need a Schengen visa</p>
-        <Marquee pauseOnHover repeat={2} className="[--duration:60s] [--gap:0.75rem]">
+        {/* faded edges, as in Magic UI's marquee demos, so names slide in instead of being cut off */}
+        <Marquee pauseOnHover repeat={2} className="[mask-image:linear-gradient(to_right,transparent,black_8%,black_92%,transparent)] [--duration:60s] [--gap:0.75rem]">
           {SCHENGEN_FLAGS.map((code) => (
             <span key={code} className="glass-subtle flex items-center gap-2 rounded-full py-1.5 pr-4 pl-2 text-sm font-medium">
               <Flag code={code} className="h-4" />

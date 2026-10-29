@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { COUNTRIES, countryName } from '@/data/countries';
+import { countryScore } from '@/data/countrySearch';
 import { cn } from '@/lib/utils';
 
 const SORTED = [...COUNTRIES].sort((a, b) => a.name.localeCompare(b.name));
@@ -26,7 +27,7 @@ export function CountryCombobox({ label, value, onChange, placeholder = 'Choose 
   const item = (code: string, name: string) => (
     <CommandItem
       key={code}
-      value={`${name} ${code}`}
+      value={code}
       onSelect={() => {
         onChange(code);
         setOpen(false);
@@ -54,7 +55,8 @@ export function CountryCombobox({ label, value, onChange, placeholder = 'Choose 
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
-          <Command>
+          {/* word-prefix search, so "india" does not also list Trinidad and Saint Kitts */}
+          <Command filter={(code, search) => countryScore(code, search)}>
             <CommandInput placeholder="Search countries…" aria-label={`Search ${label.toLowerCase()}`} />
             <CommandList className="max-h-72">
               <CommandEmpty>No country found.</CommandEmpty>
