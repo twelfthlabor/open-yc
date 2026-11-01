@@ -24,6 +24,7 @@ export function Logo({ size = 22 }: { size?: number }) {
 interface Props {
   current: string;
   fleet: Fleet | null;
+  stale?: boolean;
   theme: Theme;
   onTheme: (t: Theme) => void;
   onRefresh: () => void;
@@ -34,7 +35,7 @@ interface Props {
 const NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon };
 
-export function Shell({ current, fleet, theme, onTheme, onRefresh, onSignOut, children }: Props) {
+export function Shell({ current, fleet, stale, theme, onTheme, onRefresh, onSignOut, children }: Props) {
   const [palette, setPalette] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [help, setHelp] = useState(false);
@@ -111,9 +112,9 @@ export function Shell({ current, fleet, theme, onTheme, onRefresh, onSignOut, ch
           })}
         </nav>
         <div className="side-foot">
-          <div className="status">
-            <span className="dot" />
-            {fleet ? `Collector updated ${ago(fleet.generated_at)}` : "Connecting"}
+          <div className={`status${stale ? " stale" : ""}`} title={stale ? "The last refresh failed; showing the data loaded before it" : "Refreshes every 30 seconds while this tab is open"}>
+            <span className="dot" key={fleet?.generated_at} />
+            {!fleet ? "Connecting" : stale ? `Offline, data from ${ago(fleet.generated_at)}` : `Live · updated ${ago(fleet.generated_at)}`}
           </div>
           <div className="side-actions">
             <button className="icon-btn" type="button" onClick={onRefresh} aria-label="Refresh data" title="Refresh data">

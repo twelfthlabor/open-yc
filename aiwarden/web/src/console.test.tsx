@@ -11,8 +11,97 @@ import { Profiler } from "react";
 import { Findings, FindingsTable } from "./pages/Findings";
 import { Overview } from "./pages/Overview";
 import type { Fleet } from "./lib/types";
+import { pageTitle } from "./components/nav";
+import { REMEDIATION } from "./lib/remediation";
+import { attackPaths } from "./components/Graph";
+import { tweenText } from "./lib/motion";
+import { Stat } from "./components/ui";
+import { useApi } from "./lib/useApi";
+import { act, renderHook, waitFor } from "@testing-library/react";
 
 afterEach(cleanup);
+
+describe("page titles", () => {
+  it("use the sidebar label, not the raw path", () => {
+    expect(pageTitle([])).toBe("Overview – aiwarden");
+    expect(pageTitle(["mcp"])).toBe("MCP servers – aiwarden");
+    expect(pageTitle(["weekly"])).toBe("Weekly report – aiwarden");
+    expect(pageTitle(["devices", "dev-maya"])).toBe("Devices – aiwarden");
+    expect(pageTitle(["nope"])).toBe("Overview – aiwarden");
+  });
+});
+
+describe("count-up", () => {
+  it("tweens the first number in a formatted value and keeps its format", () => {
+    expect(tweenText("$1,234.50", 0.5)).toBe("$617.25");
+    expect(tweenText("82.6M", 1)).toBe("82.6M");
+    expect(tweenText("82.6M", 0)).toBe("0.0M");
+    expect(tweenText("4/6", 0)).toBe("0/6");
+    expect(tweenText("12,345", 1)).toBe("12,345");
+    expect(tweenText("none", 0.3)).toBe("none");
+  });
+  it("renders the final value straight away when motion is unavailable", () => {
+    const { container } = render(<Stat value="$723.01" label="Spend" />);
+    expect(container.querySelector("b")!.textContent).toBe("$723.01");
+  });
+});
+
+describe("live refresh", () => {
+  it("keeps the last data when a background reload fails", async () => {
+    let fail = false;
+    const { result } = renderHook(() => useApi(() => (fail ? Promise.reject(new Error("offline")) : Promise.resolve({ n: 1 })), "k"));
+    await waitFor(() => expect(result.current.data).toEqual({ n: 1 }));
+    fail = true;
+    act(() => result.current.reload());
+    await waitFor(() => expect(result.current.stale).toBe(true));
+    expect(result.current.data).toEqual({ n: 1 });
+    expect(result.current.error).toBeNull();
+  });
+});
+
+describe("attack paths", () => {
+  it("lights the chain from the user to each risky node and what it reaches", () => {
+    const nodes = [
+      { id: "user:u", type: "user", label: "u" },
+      { id: "device:d", type: "device", label: "d" },
+      { id: "app:cc", type: "app", label: "Claude Code" },
+      { id: "mcp:gh", type: "mcp", label: "github", meta: { max_severity: "high", findings: 1 } },
+      { id: "host:x", type: "host", label: "x" },
+      { id: "mcp:ok", type: "mcp", label: "docs" },
+      { id: "model:m", type: "model", label: "m" },
+      { id: "ext:e", type: "extension", label: "e", meta: { max_severity: "info", findings: 1 } },
+    ];
+    const edges = [
+      ["user:u", "device:d"], ["device:d", "app:cc"], ["app:cc", "mcp:gh"], ["mcp:gh", "host:x"],
+      ["app:cc", "mcp:ok"], ["app:cc", "model:m"], ["device:d", "ext:e"],
+    ].map(([source, target]) => ({ source, target, type: "x" }));
+    const p = attackPaths(nodes, edges);
+    expect([...p.nodes].sort()).toEqual(["app:cc", "device:d", "host:x", "mcp:gh", "user:u"]);
+    expect(p.edges.has("app:cc>mcp:gh")).toBe(true);
+    expect(p.edges.has("app:cc>mcp:ok")).toBe(false);
+    expect(p.targets).toEqual(["mcp:gh"]);
+  });
+  it("follows a risky app to what it can reach, not to its models or skills", () => {
+    const nodes = [
+      { id: "device:d", type: "device", label: "d" },
+      { id: "app:cc", type: "app", label: "Claude Code", meta: { max_severity: "critical", findings: 1 } },
+      { id: "mcp:fs", type: "mcp", label: "filesystem" },
+      { id: "pkg:fs", type: "package", label: "server-filesystem" },
+      { id: "model:m", type: "model", label: "m" },
+      { id: "skill:s", type: "skill", label: "s" },
+    ];
+    const edges = [["device:d", "app:cc"], ["app:cc", "mcp:fs"], ["mcp:fs", "pkg:fs"], ["app:cc", "model:m"], ["app:cc", "skill:s"]].map(([source, target]) => ({ source, target, type: "x" }));
+    expect([...attackPaths(nodes, edges).nodes].sort()).toEqual(["app:cc", "device:d", "mcp:fs", "pkg:fs"]);
+  });
+});
+
+describe("remediation", () => {
+  it("has a fix for every finding rule the scanner emits", () => {
+    for (const r of ["MCP001", "MCP002", "MCP003", "MCP004", "MCP005", "AGT001", "AGT002", "AGT003", "AGT004", "EXT001"]) {
+      expect(REMEDIATION[r]?.steps.length, r).toBeGreaterThan(0);
+    }
+  });
+});
 
 describe("format", () => {
   it("compacts numbers", () => {
@@ -146,6 +235,7 @@ describe("finding peek", () => {
     expect(dlg.textContent).toContain("Move it to the OS keychain");
     expect(dlg.querySelector("a[href='#/devices/d1']")).not.toBeNull();
     expect(dlg.textContent).toContain("maya-mbp"); // same rule on another device
+    expect(dlg.textContent).toContain("How to fix");
     expect(dlg.querySelector("tr")).toBeNull(); // never adds rows the findings-table selectors would count
     fireEvent.keyDown(window, { key: "j" });
     expect(moved).toBe(findingId(rows[1]));

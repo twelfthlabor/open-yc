@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Maximize2, Minus, Plus } from "lucide-react";
+import { Maximize2, Minus, Plus, Route } from "lucide-react";
 import type { GraphEdge, GraphNode } from "../lib/types";
 
 export const TYPE_COLOR: Record<string, string> = {
@@ -114,6 +114,48 @@ export function fitView(ns: { x: number; y: number }[]): { x: number; y: number;
   return { k, x: W / 2 - cx * k, y: H / 2 - cy * k };
 }
 
+const RISKY = new Set(["critical", "high", "medium"]);
+/** What a compromised node can pass data or commands to; models and skills are not on that route. */
+const REACH = new Set(["mcp", "package", "host", "extension"]);
+
+/** Attack paths: for every node with a medium-or-worse finding, the chain of edges leading to it from the
+ *  top of the map (user, device, app) and the MCP servers, packages, hosts and extensions it reaches. */
+export function attackPaths(nodes: GraphNode[], edges: GraphEdge[]): { nodes: Set<string>; edges: Set<string>; targets: string[] } {
+  const type = new Map(nodes.map((n) => [n.id, n.type]));
+  const ids = new Set(type.keys());
+  const parents = new Map<string, string[]>();
+  const children = new Map<string, string[]>();
+  for (const e of edges) {
+    if (!ids.has(e.source) || !ids.has(e.target) || e.source === e.target) continue;
+    (parents.get(e.target) || parents.set(e.target, []).get(e.target)!).push(e.source);
+    (children.get(e.source) || children.set(e.source, []).get(e.source)!).push(e.target);
+  }
+  const targets = nodes.filter((n) => RISKY.has(String(n.meta?.max_severity))).map((n) => n.id);
+  const onPath = new Set<string>();
+  const links = new Set<string>();
+  const walk = (start: string, next: Map<string, string[]>, up: boolean) => {
+    const stack = [start];
+    const seen = new Set([start]);
+    while (stack.length) {
+      const cur = stack.pop()!;
+      onPath.add(cur);
+      for (const o of next.get(cur) || []) {
+        if (!up && !REACH.has(type.get(o) || "")) continue;
+        links.add(up ? `${o}>${cur}` : `${cur}>${o}`);
+        if (!seen.has(o)) {
+          seen.add(o);
+          stack.push(o);
+        }
+      }
+    }
+  };
+  for (const t of targets) {
+    walk(t, parents, true);
+    walk(t, children, false);
+  }
+  return { nodes: onPath, edges: links, targets };
+}
+
 function sevStroke(s: unknown): string | undefined {
   return s === "critical" ? "var(--critical)" : s === "high" ? "var(--high)" : s === "medium" ? "var(--medium)" : undefined;
 }
@@ -132,6 +174,9 @@ export function RelationshipGraph({ nodes, edges }: { nodes: GraphNode[]; edges:
   const svgRef = useRef<SVGSVGElement>(null);
   const drag = useRef<{ kind: "pan" | "node"; i?: number; sx: number; sy: number; ox: number; oy: number; moved: boolean } | null>(null);
   const [dragging, setDragging] = useState(false);
+  const paths = useMemo(() => attackPaths(nodes, edges), [nodes, edges]);
+  const [showPaths, setShowPaths] = useState(false);
+  const tracing = showPaths && paths.targets.length > 0;
 
   const neighbors = useMemo(() => {
     const m = new Map<number, Set<number>>();
@@ -146,7 +191,12 @@ export function RelationshipGraph({ nodes, edges }: { nodes: GraphNode[]; edges:
 
   const focus = hover ?? selected;
   const near = focus !== null ? neighbors.get(focus) || new Set<number>() : null;
-  const lit = (i: number) => focus === null || i === focus || near!.has(i);
+  const lit = (i: number) => (focus === null ? !tracing || paths.nodes.has(base.nodes[i].id) : i === focus || near!.has(i));
+  const linkClass = (s: number, t: number) => {
+    if (focus !== null) return s === focus || t === focus ? "hot" : "dim";
+    if (!tracing) return undefined;
+    return paths.edges.has(`${base.nodes[s].id}>${base.nodes[t].id}`) || paths.edges.has(`${base.nodes[t].id}>${base.nodes[s].id}`) ? "path" : "dim";
+  };
 
   const toSvg = (cx: number, cy: number) => {
     const r = svgRef.current!.getBoundingClientRect();
@@ -224,7 +274,7 @@ export function RelationshipGraph({ nodes, edges }: { nodes: GraphNode[]; edges:
                 y1={pos[s]?.y}
                 x2={pos[t]?.x}
                 y2={pos[t]?.y}
-                className={focus !== null && (s === focus || t === focus) ? "hot" : focus !== null ? "dim" : undefined}
+                className={linkClass(s, t)}
               />
             ))}
             {base.nodes.map((n, i) => {
@@ -233,6 +283,7 @@ export function RelationshipGraph({ nodes, edges }: { nodes: GraphNode[]; edges:
                 <g
                   key={n.id}
                   className={`node${lit(i) ? "" : " dim"}`}
+                  style={{ "--i": Math.min(i, 40) } as React.CSSProperties}
                   transform={`translate(${pos[i]?.x ?? n.x} ${pos[i]?.y ?? n.y})`}
                   tabIndex={0}
                   role="button"
@@ -263,6 +314,18 @@ export function RelationshipGraph({ nodes, edges }: { nodes: GraphNode[]; edges:
           </g>
         </svg>
         <div className="graph-tools">
+          {paths.targets.length > 0 && (
+            <button
+              className={`icon-btn${showPaths ? " on" : ""}`}
+              type="button"
+              aria-pressed={showPaths}
+              aria-label={`${showPaths ? "Hide" : "Show"} attack paths`}
+              title={`Attack paths: how a user reaches the ${paths.targets.length} risky item${paths.targets.length === 1 ? "" : "s"}`}
+              onClick={() => setShowPaths((v) => !v)}
+            >
+              <Route size={15} />
+            </button>
+          )}
           <button className="icon-btn" type="button" aria-label="Zoom in" onClick={() => zoom(1.25)}>
             <Plus size={16} />
           </button>
@@ -303,6 +366,12 @@ export function RelationshipGraph({ nodes, edges }: { nodes: GraphNode[]; edges:
           <i style={{ background: "transparent", boxShadow: "0 0 0 2px var(--high)" }} />
           Has findings
         </span>
+        {tracing && (
+          <span className="path-key">
+            <i />
+            Attack path to {paths.targets.length} risky item{paths.targets.length === 1 ? "" : "s"}
+          </span>
+        )}
       </div>
     </>
   );

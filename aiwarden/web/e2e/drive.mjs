@@ -65,7 +65,8 @@ const browser = await chromium.launch({ executablePath: findChromium(), headless
 const problems = [];
 
 async function newPage(opts = {}) {
-  const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1, ...opts });
+  // reduced motion: screenshots and counts see the settled page, not an entrance animation half-way through
+  const ctx = await browser.newContext({ viewport: { width: 1360, height: 900 }, deviceScaleFactor: 1, reducedMotion: "reduce", ...opts });
   const page = await ctx.newPage();
   // 401 (the wrong-token step) and 422 (the unparseable question) are expected responses, not errors
   page.on("console", (m) => {
@@ -113,6 +114,11 @@ try {
   await page.locator(".graph g.node").first().locator("circle").last().click();
   check("selecting a node shows details", await page.locator(".graph-info").isVisible());
   await page.getByRole("button", { name: "Zoom in" }).click();
+  await page.locator(".graph svg").first().click({ position: { x: 5, y: 5 } }); // clear the selection
+  await page.getByRole("button", { name: "Show attack paths" }).click();
+  const pathEdges = await page.locator(".graph line.path").count();
+  check("attack paths light the route to risky nodes", pathEdges > 0 && (await page.locator(".graph g.node.dim").count()) > 0, `${pathEdges} edges`);
+  check("page title uses the sidebar label", (await page.title()) === "Devices – aiwarden");
   await page.screenshot({ path: join(OUT, "device-light.png"), fullPage: true });
 
   // 3. findings filter via headline link
@@ -137,6 +143,7 @@ try {
   await peek.waitFor();
   check("finding row opens the side panel", (await peek.locator(".peek-pos").textContent())?.trim() === "1 / 3");
   check("peek links to the device", (await peek.locator("a[href^='#/devices/']").count()) === 1);
+  check("peek says how to fix it", /How to fix/.test(await peek.innerText()) && (await peek.locator(".peek-fix li").count()) > 0);
   await page.keyboard.press("j");
   await page.waitForFunction(() => document.querySelector(".peek-pos")?.textContent?.trim() === "2 / 3", null, { timeout: 3000 }).catch(() => {});
   check("j moves to the next finding", (await peek.locator(".peek-pos").textContent())?.trim() === "2 / 3");

@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useCountUp } from "../lib/motion";
 
 const SEVERITIES = new Set(["critical", "high", "medium", "low", "info"]);
 const DECISIONS = new Set(["deny", "ask", "allow", "block", "warn"]);
@@ -84,10 +85,14 @@ export function Block({ title, aside, children, id }: { title: ReactNode; aside?
   );
 }
 
+function CountUp({ text }: { text: string }) {
+  return <>{useCountUp(text)}</>;
+}
+
 export function Stat({ value, label, delta, deltaKind }: { value: ReactNode; label: string; delta?: string; deltaKind?: "up" | "down" }) {
   return (
     <div className="stat">
-      <b>{value}</b>
+      <b>{typeof value === "string" || typeof value === "number" ? <CountUp text={String(value)} /> : value}</b>
       <span>{label}</span>
       {delta && <small className={deltaKind}>{delta}</small>}
     </div>
