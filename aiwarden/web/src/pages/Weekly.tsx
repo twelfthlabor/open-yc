@@ -4,7 +4,7 @@ import { BarList, SevBar } from "../components/Charts";
 import { DataTable } from "../components/Table";
 import { Block, Empty, ErrorNote, Loading, PageHead, Sev, Stat } from "../components/ui";
 import { api } from "../lib/api";
-import { compact, day, int, pct, usd } from "../lib/format";
+import { compact, day, int, pct, plural, usd } from "../lib/format";
 import type { Breakdown, Change, Weekly as W } from "../lib/types";
 import { useApi } from "../lib/useApi";
 
@@ -39,7 +39,7 @@ export function Weekly({ onUnauthorized }: { onUnauthorized: () => void }) {
     <>
       <PageHead
         title="Weekly report"
-        sub={w ? `${day(w.period.since)} to ${day(w.period.until)}, compared with the week before. ${w.devices} devices.` : "Usage and risk for the last seven days."}
+        sub={w ? `${day(w.period.since)} to ${day(w.period.until)}, compared with the week before. ${plural(w.devices, "device")}.` : "Usage and risk for the last seven days."}
         actions={
           <>
             <label className="field" style={{ minWidth: 0 }}>

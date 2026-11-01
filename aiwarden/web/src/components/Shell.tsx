@@ -1,10 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LogOut, Menu, Monitor, Moon, RefreshCw, Search, Sun } from "lucide-react";
-import { DEMO_TOKEN } from "../lib/api";
 import { ago } from "../lib/format";
 import { go, href } from "../lib/router";
 import { SEQUENCE_MS, shortcut } from "../lib/shortcuts";
-import type { Fleet } from "../lib/types";
+import type { Fleet, Meta } from "../lib/types";
 import { CommandMenu } from "./CommandMenu";
 import { NAV } from "./nav";
 import { ShortcutHelp } from "./ShortcutHelp";
@@ -24,6 +23,7 @@ export function Logo({ size = 22 }: { size?: number }) {
 interface Props {
   current: string;
   fleet: Fleet | null;
+  meta: Meta | null;
   stale?: boolean;
   theme: Theme;
   onTheme: (t: Theme) => void;
@@ -35,7 +35,7 @@ interface Props {
 const NEXT: Record<Theme, Theme> = { system: "light", light: "dark", dark: "system" };
 const THEME_ICON = { system: Monitor, light: Sun, dark: Moon };
 
-export function Shell({ current, fleet, stale, theme, onTheme, onRefresh, onSignOut, children }: Props) {
+export function Shell({ current, fleet, meta, stale, theme, onTheme, onRefresh, onSignOut, children }: Props) {
   const [palette, setPalette] = useState(false);
   const [drawer, setDrawer] = useState(false);
   const [help, setHelp] = useState(false);
@@ -76,6 +76,23 @@ export function Shell({ current, fleet, stale, theme, onTheme, onRefresh, onSign
     mcp: t ? { n: t.mcp_servers || 0 } : undefined,
   };
   const ThemeIcon = THEME_ICON[theme];
+  const canScan = !!meta?.rescan.available;
+  const scanning = !!meta?.rescan.running;
+  const newest = fleet?.devices.map((d) => d.received_at || "").sort().pop();
+  const statusText = !fleet
+    ? "Connecting"
+    : stale
+      ? `Offline, data from ${ago(fleet.generated_at)}`
+      : scanning
+        ? "Scanning this device…"
+        : meta?.mode === "local"
+          ? `Scanned ${ago(meta.rescan.last || newest)}`
+          : `Live · updated ${ago(fleet.generated_at)}`;
+  const statusTitle = meta?.rescan.error
+    ? `The last rescan failed: ${meta.rescan.error}`
+    : meta?.mode === "local"
+      ? "aiwarden rescans this device every few minutes; the refresh button rescans now"
+      : "Refreshes every 30 seconds while this tab is open";
   let group = "";
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -112,18 +129,25 @@ export function Shell({ current, fleet, stale, theme, onTheme, onRefresh, onSign
           })}
         </nav>
         <div className="side-foot">
-          <div className={`status${stale ? " stale" : ""}`} title={stale ? "The last refresh failed; showing the data loaded before it" : "Refreshes every 30 seconds while this tab is open"}>
+          <div className={`status${stale ? " stale" : ""}${scanning ? " scanning" : ""}`} title={statusTitle} aria-live="polite">
             <span className="dot" key={fleet?.generated_at} />
-            {!fleet ? "Connecting" : stale ? `Offline, data from ${ago(fleet.generated_at)}` : `Live · updated ${ago(fleet.generated_at)}`}
+            {statusText}
           </div>
           <div className="side-actions">
-            <button className="icon-btn" type="button" onClick={onRefresh} aria-label="Refresh data" title="Refresh data">
+            <button
+              className={`icon-btn${scanning ? " spinning" : ""}`}
+              type="button"
+              onClick={onRefresh}
+              disabled={scanning}
+              aria-label={canScan ? "Rescan this device" : "Refresh data"}
+              title={canScan ? "Rescan this device" : "Refresh data"}
+            >
               <RefreshCw size={15} />
             </button>
             <button className="icon-btn" type="button" onClick={() => onTheme(NEXT[theme])} aria-label={`Theme: ${theme}. Switch to ${NEXT[theme]}`} title={`Theme: ${theme}`}>
               <ThemeIcon size={15} />
             </button>
-            {!DEMO_TOKEN && (
+            {meta?.auth === "token" && meta.mode !== "demo" && (
               <button className="icon-btn" type="button" onClick={onSignOut} aria-label="Disconnect from collector" title="Disconnect">
                 <LogOut size={15} />
               </button>
@@ -145,7 +169,7 @@ export function Shell({ current, fleet, stale, theme, onTheme, onRefresh, onSign
           </button>
         </div>
         <main id="main" className="page" tabIndex={-1}>
-          {DEMO_TOKEN && (
+          {meta?.mode === "demo" && (
             <p className="demo-note no-print">
               Public demo with six made-up laptops. It is read-only; run <code>aiwarden serve</code> to see your own fleet.{" "}
               <a href="https://github.com/twelfthlabor/open-yc/tree/main/aiwarden">Source on GitHub</a>

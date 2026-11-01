@@ -10,6 +10,7 @@ import json
 import os
 import re
 import sqlite3
+import threading
 import urllib.request
 from collections import Counter, defaultdict
 from datetime import datetime, timezone
@@ -472,6 +473,85 @@ def ui_files() -> dict[str, tuple[bytes, str]]:
     return out
 
 
+SESSIONS_CAP = 500
+RISKY_CAP = 300
+
+
+def _float(v) -> float:
+    try:
+        return float(v or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def insights(reports: list[dict]) -> dict:
+    """What the Insights page draws, from the latest report of each device: sessions (for the activity heatmap and
+    the session list), spend per project per device, tool and MCP-call counts, risky actions, agent configuration
+    and pricing caveats. Lists are capped so a busy fleet stays a small response."""
+    sessions, projects, risky, agents = [], [], [], []
+    tools: Counter = Counter()
+    mcp: dict[str, Counter] = defaultdict(Counter)
+    tok = Counter()
+    unpriced, unverified, as_of = set(), set(), set()
+    for r in reports:
+        dev = r.get("device") or {}
+        did, host = str(dev.get("id", "")), str(dev.get("hostname", ""))
+        u = r.get("usage") or {}
+        for s in u.get("sessions") or []:
+            if isinstance(s, dict) and s.get("start"):
+                sessions.append({k: s.get(k) for k in ("app", "project", "start", "end", "models", "input_tokens", "output_tokens",
+                                                       "cache_read_tokens", "cost_usd", "tool_calls", "mcp_servers")}
+                                | {"hostname": host, "device_id": did})
+        by_project = u.get("by_project") or {}
+        if not by_project:  # older reports: rebuild per-project totals from the sessions they kept
+            for s in u.get("sessions") or []:
+                b = by_project.setdefault(s.get("project") or "(no project)", Counter())
+                for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cost_usd"):
+                    b[k] += _float(s.get(k))
+        n_sessions = Counter(s.get("project") for s in u.get("sessions") or [])
+        for proj, t in by_project.items():
+            projects.append({"device_id": did, "hostname": host, "project": proj, "sessions": n_sessions.get(proj, 0),
+                             **{k: _float(t.get(k)) for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cost_usd")}})
+        for name, n in (u.get("tools") or {}).items():
+            tools[name] += int(_float(n))
+        for srv, calls in (u.get("mcp_calls") or {}).items():
+            for tool, n in (calls or {}).items():
+                mcp[srv][tool] += int(_float(n))
+        for e in u.get("risky_events") or []:
+            risky.append({k: e.get(k) for k in ("timestamp", "app", "tool", "rule", "action", "reason", "project", "subject")}
+                         | {"hostname": host, "device_id": did})
+        for t in (u.get("by_app") or {}).values():
+            for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "cost_usd"):
+                tok[k] += _float(t.get(k))
+        cost = u.get("cost") or {}
+        unpriced |= set(cost.get("unpriced_models") or [])
+        unverified |= set(cost.get("unverified_price_models") or [])
+        if cost.get("prices_as_of"):
+            as_of.add(cost["prices_as_of"])
+        c = r.get("claude") or {}
+        agents.append({"device_id": did, "hostname": host, "guard_installed": bool((r.get("summary") or {}).get("guard_installed")),
+                       "hooks": [{k: h.get(k) for k in ("event", "matcher", "scope")} for h in c.get("hooks") or []],
+                       "plugins": list(c.get("plugins") or []), "agents": list(c.get("agents") or []),
+                       "skills": [sk.get("name") for sk in c.get("skills") or [] if isinstance(sk, dict)],
+                       "default_mode": (c.get("permissions") or {}).get("defaultMode")})
+    sessions.sort(key=lambda s: str(s["start"]), reverse=True)
+    risky.sort(key=lambda e: str(e.get("timestamp") or ""), reverse=True)
+    projects.sort(key=lambda x: (x["cost_usd"], x["output_tokens"]), reverse=True)
+    return {
+        "sessions": sessions[:SESSIONS_CAP],
+        "sessions_total": len(sessions),
+        "projects": projects[:100],
+        "tools": [{"tool": k, "calls": v} for k, v in tools.most_common(40)],
+        "mcp_calls": sorted(({"server": k, "calls": sum(v.values()), "tools": [{"tool": t, "calls": n} for t, n in v.most_common(8)]}
+                             for k, v in mcp.items()), key=lambda x: x["calls"], reverse=True),
+        "risky_events": risky[:RISKY_CAP],
+        "risky_total": len(risky),
+        "agents": agents,
+        "tokens": {k: tok[k] for k in ("input_tokens", "output_tokens", "cache_read_tokens", "cache_write_tokens", "cost_usd")},
+        "pricing": {"unpriced_models": sorted(unpriced), "unverified_models": sorted(unverified), "prices_as_of": max(as_of) if as_of else None},
+    }
+
+
 def _reports(store: "Store") -> list[dict]:
     return [r for _, r in store.latest() if valid_report(r)]
 
@@ -530,19 +610,53 @@ def api_ask(body, reports: list[dict], config: dict) -> dict:
     return {"query": query, "translated_by": how, "result": run_query(query, build_facts(reports, config), as_of)}
 
 
-def make_server(host: str, port: int, db_path: Path, token: str, extension_ids=None,
-                config: dict | None = None) -> ThreadingHTTPServer:
+LOOPBACK = {"127.0.0.1", "localhost", "::1"}
+
+
+def make_server(host: str, port: int, db_path: Path, token: str | None, extension_ids=None,
+                config: dict | None = None, mode: str | None = None, rescan=None) -> ThreadingHTTPServer:
     """extension_ids: optional allowlist of Chrome/Edge extension ids that may call /api/browser-events from a
     browser (CORS). Defaults to $AIWARDEN_EXTENSION_IDS (comma separated); empty means any chrome-extension:// origin.
-    config: team mapping / prices / alert thresholds used by ask, weekly and alerts (see config.py)."""
-    handler = make_handler(Store(db_path), token, extension_ids, config, ui_files())
+    config: team mapping / prices / alert thresholds used by ask, weekly and alerts (see config.py).
+    token=None (the local console) is allowed only on a loopback address; see make_handler.
+    rescan: a function returning a fresh report for this device, run by POST /api/rescan."""
+    if token is None and host not in LOOPBACK:
+        raise ValueError("a collector reachable from other machines needs a token")
+    handler = make_handler(Store(db_path), token, extension_ids, config, ui_files(), mode=mode, rescan=rescan)
     return ThreadingHTTPServer((host, port), handler)
 
 
-def make_handler(store: Store, token: str, extension_ids=None, config: dict | None = None,
-                 files: dict[str, tuple[bytes, str]] | None = None, read_only: bool = False) -> type[BaseHTTPRequestHandler]:
+def make_handler(store: Store, token: str | None, extension_ids=None, config: dict | None = None,
+                 files: dict[str, tuple[bytes, str]] | None = None, read_only: bool = False, mode: str | None = None,
+                 rescan=None) -> type[BaseHTTPRequestHandler]:
     """The collector's request handler. files: the console to serve (none where a host serves it statically).
-    read_only: refuse uploads (reports, browser events), for the public demo."""
+    read_only: refuse uploads (reports, browser events), for the public demo.
+    token=None: the local console on this machine. No token, but only requests whose Host is this loopback address
+    (so a web page cannot reach it through DNS rebinding) and whose Origin, if any, is the console itself; uploads
+    are refused. mode: what the console calls this server ("local", "collector", "demo").
+    rescan: a function returning a fresh report for this device; POST /api/rescan runs it in the background."""
+    mode = mode or ("local" if token is None else "collector")
+    scan = {"running": False, "last": None, "error": None}
+    scan_lock = threading.Lock()
+    can_rescan = rescan is not None and not read_only
+
+    def start_rescan() -> bool:
+        with scan_lock:
+            if scan["running"]:
+                return False
+            scan["running"] = True
+
+        def run():
+            err = None
+            try:
+                store.add(rescan())
+            except Exception as e:  # a failed scan is reported in /api/meta; the old report stays
+                err = f"{type(e).__name__}: {e}"[:300]
+            with scan_lock:
+                scan.update(running=False, last=datetime.now(timezone.utc).isoformat(timespec="seconds"), error=err)
+
+        threading.Thread(target=run, daemon=True).start()
+        return True
     files = files if files is not None else {}
     config = config or {}
     if extension_ids is None:
@@ -555,6 +669,7 @@ def make_handler(store: Store, token: str, extension_ids=None, config: dict | No
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "aiwarden"
+        rescan_now = staticmethod(start_rescan) if can_rescan else None
         sys_version = ""
         timeout = 30  # a client that sends less body than it announced cannot hold a thread forever
 
@@ -586,6 +701,14 @@ def make_handler(store: Store, token: str, extension_ids=None, config: dict | No
             self._send(code, json.dumps(obj).encode())
 
         def _authed(self) -> bool:
+            if token is None:
+                port = self.server.server_address[1]
+                ours = {f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"}
+                origin = self.headers.get("Origin")
+                if self.headers.get("Host", "") not in ours or (origin is not None and origin.removeprefix("http://") not in ours):
+                    self._json(403, {"error": "the local console only answers its own page on this machine"})
+                    return False
+                return True
             got = self.headers.get("Authorization", "")
             ok = got.startswith("Bearer ") and hmac.compare_digest(got[7:].encode(), token.encode())
             if not ok:
@@ -606,6 +729,13 @@ def make_handler(store: Store, token: str, extension_ids=None, config: dict | No
                 return
             if path == "/api/fleet":
                 return self._json(200, aggregate(store.latest(), store.browser_rows()))
+            if path == "/api/meta":
+                with scan_lock:
+                    state = dict(scan)
+                return self._json(200, {"mode": mode, "auth": "none" if token is None else "token", "read_only": read_only,
+                                        "rescan": {"available": can_rescan, **state}})
+            if path == "/api/insights":
+                return self._json(200, insights(_reports(store)))
             if path == "/api/rules":
                 return self._json(200, api_rules())
             if path in ("/api/weekly", "/api/alerts"):
@@ -685,8 +815,18 @@ def make_handler(store: Store, token: str, extension_ids=None, config: dict | No
 
         def do_POST(self):
             path = self.path.split("?", 1)[0]
-            if read_only and path in (BROWSER_PATH, "/api/reports"):
-                return self._json(403, {"error": "this collector is read-only"})
+            if (read_only or token is None) and path in (BROWSER_PATH, "/api/reports"):
+                return self._json(403, {"error": "this collector is read-only" if read_only else "the local console takes no uploads"})
+            if path == "/api/rescan":
+                if not self._authed():
+                    return
+                try:  # drain the (ignored) body so a kept-alive connection stays in sync
+                    self.rfile.read(min(int(self.headers.get("Content-Length") or 0), API_MAX_BODY))
+                except ValueError:
+                    pass
+                if not can_rescan:
+                    return self._json(404, {"error": "not found"})
+                return self._json(202, {"started": start_rescan(), "running": True})
             if path == BROWSER_PATH:
                 return self._post_browser()
             if path == "/api/check":

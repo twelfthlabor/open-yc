@@ -30,7 +30,7 @@ def main() -> int:
     db = Path(a.db) if a.db else Path(tempfile.mkdtemp(prefix="aiwarden-demo-")) / "fleet.db"
     if not a.empty:
         populate(Store(db))
-    srv = make_server(a.host, a.port, db, a.token, config=DEMO_CONFIG)
+    srv = make_server(a.host, a.port, db, a.token, config=DEMO_CONFIG, mode="demo")
     threading.Thread(target=srv.serve_forever, daemon=True).start()
     url = f"http://{a.host}:{srv.server_address[1]}"
     print(f"demo collector on {url}/  db={db}", flush=True)

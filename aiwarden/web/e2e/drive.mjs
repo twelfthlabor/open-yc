@@ -189,6 +189,25 @@ try {
   await page.screenshot({ path: join(OUT, "guard-light.png"), fullPage: true });
 
   // 6. the rest of the pages render without errors
+  // 5b. fleet graph and insights
+  await page.goto(`${demo.url}/#/graph`);
+  await page.getByRole("heading", { level: 1, name: "Graph" }).waitFor();
+  await page.locator(".graph g.node").first().waitFor();
+  const fleetNodes = await page.locator(".graph g.node").count();
+  check("fleet graph merges every device", fleetNodes > 40, `${fleetNodes} nodes`);
+  check("shared hubs list packages used on several devices", (await page.locator("table[aria-label='Shared hubs'] tbody tr").count()) > 0);
+  await page.getByRole("searchbox", { name: "Search the map" }).fill("github");
+  await page.keyboard.press("Enter");
+  await page.locator(".graph-info").waitFor();
+  check("graph search selects and explains a node", /Connected to/i.test(await page.locator(".graph-info").innerText()));
+  await page.screenshot({ path: join(OUT, "graph-light.png"), fullPage: true });
+  await page.goto(`${demo.url}/#/insights`);
+  await page.getByRole("heading", { level: 1, name: "Insights" }).waitFor();
+  await page.locator(".heat .cell").first().waitFor();
+  check("insights heatmap and sessions render", (await page.locator(".heat .cell:not(.zero)").count()) > 10 && (await page.locator("table[aria-label='Recent sessions'] tbody tr").count()) === 10);
+  check("insights shows agent configuration", (await page.locator("table[aria-label='Agent configuration'] tbody tr").count()) === 6);
+  await page.screenshot({ path: join(OUT, "insights-light.png"), fullPage: true });
+
   for (const [path, heading] of [["usage", "Usage"], ["mcp", "MCP servers"], ["browser", "Browser"], ["alerts", "Alerts"], ["weekly", "Weekly report"], ["devices", "Devices"]]) {
     await page.goto(`${demo.url}/#/${path}`);
     await page.getByRole("heading", { level: 1, name: heading }).waitFor();
