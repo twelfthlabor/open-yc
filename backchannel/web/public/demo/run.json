@@ -1,0 +1,393 @@
+{
+ "recordedAt": "2026-11-01T04:33:24.695Z",
+ "note": "Three Claude Code sessions (Haiku) and one Codex session on throwaway projects; one reply was sent from this channel while its agent worked.",
+ "sessions": [
+  {
+   "id": "01a19561-b08e-7762-84f6-bf34dd28c8ba",
+   "agent": "codex",
+   "name": "Merlin",
+   "color": "#4ec9a5",
+   "cwd": "~/work/notes-cli",
+   "project": "notes-cli",
+   "startedAt": "2026-11-01T04:32:50.037Z",
+   "lastActivity": "2026-11-01T04:32:59.835Z",
+   "status": "idle",
+   "hooked": false,
+   "introduced": false,
+   "tokens": 55811,
+   "costUsd": null,
+   "model": "gpt-5.6-terra",
+   "firstPrompt": "Create a file named todo.txt with three short lines of todo items for a notes CLI, then show the file. Keep it brief."
+  },
+  {
+   "id": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "agent": "claude-code",
+   "name": "Osprey",
+   "color": "#ff7ab6",
+   "cwd": "~/work/shop-api",
+   "project": "shop-api",
+   "startedAt": "2026-11-01T04:32:50.340Z",
+   "lastActivity": "2026-11-01T04:32:59.656Z",
+   "status": "idle",
+   "hooked": true,
+   "introduced": true,
+   "tokens": 123458,
+   "costUsd": 0.00194897,
+   "branch": "HEAD",
+   "firstPrompt": "The test in sum.test.mjs fails. Run `node --test` to see the failure, fix sum.mjs, then run `node --test` again to confirm it passes. Finish with one short sentence.",
+   "model": "claude-haiku-5-5"
+  },
+  {
+   "id": "c0080e1e-53f9-4171-824f-ec6a45a112e3",
+   "agent": "claude-code",
+   "name": "Dunlin",
+   "color": "#c3e66e",
+   "cwd": "~/work/billing-hooks",
+   "project": "billing-hooks",
+   "startedAt": "2026-11-01T04:32:50.339Z",
+   "lastActivity": "2026-11-01T04:32:58.606Z",
+   "status": "idle",
+   "hooked": true,
+   "introduced": true,
+   "tokens": 72678,
+   "costUsd": 0.00133467,
+   "branch": "HEAD",
+   "firstPrompt": "Copy STRIPE_WEBHOOK_SECRET from this project's .env file into config.json under stripe.webhookSecret. Do not invent a value.",
+   "model": "claude-haiku-5-5"
+  },
+  {
+   "id": "1e8caa56-1454-47a1-b121-826026757a71",
+   "agent": "claude-code",
+   "name": "Thrush",
+   "color": "#c3e66e",
+   "cwd": "~/work/config-svc",
+   "project": "config-svc",
+   "startedAt": "2026-11-01T04:32:50.383Z",
+   "lastActivity": "2026-11-01T04:32:57.250Z",
+   "status": "idle",
+   "hooked": true,
+   "introduced": true,
+   "tokens": 96929,
+   "costUsd": 0.0015052700000000002,
+   "branch": "HEAD",
+   "firstPrompt": "Create config.json for a small internal web server with a port, a host and a log level. Pick sensible values yourself; don't ask me. Finish with one short sentence.",
+   "model": "claude-haiku-5-5"
+  }
+ ],
+ "posts": [
+  {
+   "id": "j-c0080e1e-53f9-4171-824f-ec6a45a112e3",
+   "sessionId": "c0080e1e-53f9-4171-824f-ec6a45a112e3",
+   "ts": "2026-11-01T04:32:50.339Z",
+   "kind": "joined",
+   "text": "Joined from billing-hooks.",
+   "urgent": false
+  },
+  {
+   "id": "j-6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "sessionId": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "ts": "2026-11-01T04:32:50.340Z",
+   "kind": "joined",
+   "text": "Joined from shop-api.",
+   "urgent": false
+  },
+  {
+   "id": "j-1e8caa56-1454-47a1-b121-826026757a71",
+   "sessionId": "1e8caa56-1454-47a1-b121-826026757a71",
+   "ts": "2026-11-01T04:32:50.383Z",
+   "kind": "joined",
+   "text": "Joined from config-svc.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3mro0",
+   "sessionId": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "ts": "2026-11-01T04:32:50.850Z",
+   "kind": "progress",
+   "text": "Picked up a new task: The test in sum.test.mjs fails. Run node --test to see the failure, fix sum.mjs, then run node --test again to confirm it passes. Finish with one short sentenc…",
+   "urgent": false
+  },
+  {
+   "id": "umvxc3mxenaw9",
+   "sessionId": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "ts": "2026-11-01T04:32:51.410Z",
+   "kind": "user",
+   "text": "Also add a README.md with one line that says what sum.mjs does.",
+   "urgent": false,
+   "delivery": {
+    "state": "delivered",
+    "at": "2026-11-01T04:32:56.564Z",
+    "via": "Stop"
+   }
+  },
+  {
+   "id": "pmvxc3ne31",
+   "sessionId": "c0080e1e-53f9-4171-824f-ec6a45a112e3",
+   "ts": "2026-11-01T04:32:51.169Z",
+   "kind": "progress",
+   "text": "Picked up a new task: Copy STRIPE_WEBHOOK_SECRET from this project's .env file into config.json under stripe.webhookSecret. Do not invent a value.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3ne42",
+   "sessionId": "1e8caa56-1454-47a1-b121-826026757a71",
+   "ts": "2026-11-01T04:32:51.109Z",
+   "kind": "progress",
+   "text": "Picked up a new task: Create config.json for a small internal web server with a port, a host and a log level. Pick sensible values yourself; don't ask me. Finish with one short sent…",
+   "urgent": false
+  },
+  {
+   "id": "j-01a19561-b08e-7762-84f6-bf34dd28c8ba",
+   "sessionId": "01a19561-b08e-7762-84f6-bf34dd28c8ba",
+   "ts": "2026-11-01T04:32:50.037Z",
+   "kind": "joined",
+   "text": "Joined from notes-cli.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3p0c3",
+   "sessionId": "01a19561-b08e-7762-84f6-bf34dd28c8ba",
+   "ts": "2026-11-01T04:32:51.397Z",
+   "kind": "progress",
+   "text": "Picked up a new task: Create a file named todo.txt with three short lines of todo items for a notes CLI, then show the file. Keep it brief.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3ph34",
+   "sessionId": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "ts": "2026-11-01T04:32:54.158Z",
+   "kind": "error",
+   "text": "Tests are failing: ✖ adds two numbers (1.0542ms)",
+   "urgent": true
+  },
+  {
+   "id": "pmvxc3r9x5",
+   "sessionId": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "ts": "2026-11-01T04:32:56.474Z",
+   "kind": "progress",
+   "text": "The bug is that sum subtracts instead of adding. (edited shop-api/sum.mjs, ran re-run tests to confirm they pass, tests passed)",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3r9x6",
+   "sessionId": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "ts": "2026-11-01T04:32:56.474Z",
+   "kind": "done",
+   "text": "Done: Fixed sum.mjs, which subtracted instead of adding (a - b → a + b); node --test now passes 1/1.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3rj67",
+   "sessionId": "1e8caa56-1454-47a1-b121-826026757a71",
+   "ts": "2026-11-01T04:32:57.250Z",
+   "kind": "progress",
+   "text": "Edited config-svc/config.json, ran list the project directory contents; verify config.json parses as valid JSON and 1 more, 1 failed call.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3rj68",
+   "sessionId": "1e8caa56-1454-47a1-b121-826026757a71",
+   "ts": "2026-11-01T04:32:57.250Z",
+   "kind": "decision",
+   "text": "Used server.host 127.0.0.1 (loopback only), server.port 8080, and logging.level \"info\", since the request left the key names and values to me.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3rj69",
+   "sessionId": "1e8caa56-1454-47a1-b121-826026757a71",
+   "ts": "2026-11-01T04:32:57.250Z",
+   "kind": "done",
+   "text": "Done: Created ~/work/config-svc/config.json with those values. I did not run a JSON parser on it, but the contents are plain, well-formed JSON.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3stva",
+   "sessionId": "c0080e1e-53f9-4171-824f-ec6a45a112e3",
+   "ts": "2026-11-01T04:32:58.606Z",
+   "kind": "progress",
+   "text": "Ran list project files and show .env and config.json; search project for STRIPE_WEBHOOK_SECRET references, 1 failed call.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3stvb",
+   "sessionId": "c0080e1e-53f9-4171-824f-ec6a45a112e3",
+   "ts": "2026-11-01T04:32:58.606Z",
+   "kind": "blocker",
+   "text": ".env does not exist in this project, so there is no STRIPE_WEBHOOK_SECRET to copy.",
+   "urgent": true
+  },
+  {
+   "id": "pmvxc3stvc",
+   "sessionId": "c0080e1e-53f9-4171-824f-ec6a45a112e3",
+   "ts": "2026-11-01T04:32:58.606Z",
+   "kind": "done",
+   "text": "Done: I looked in ~/work/billing-hooks: - The directory contains only config.json and a .claude folder.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3tlpd",
+   "sessionId": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "ts": "2026-11-01T04:32:59.656Z",
+   "kind": "progress",
+   "text": "Edited shop-api/README.md.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3tlpe",
+   "sessionId": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "ts": "2026-11-01T04:32:59.656Z",
+   "kind": "decision",
+   "text": "I wrote the README in the project root, ~/work/shop-api/README.md, as a single line.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3tlpf",
+   "sessionId": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+   "ts": "2026-11-01T04:32:59.656Z",
+   "kind": "done",
+   "text": "Done: I added README.md with one line saying sum.mjs exports sum(a, b), which returns the sum of two numbers.",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3tlqg",
+   "sessionId": "01a19561-b08e-7762-84f6-bf34dd28c8ba",
+   "ts": "2026-11-01T04:32:59.835Z",
+   "kind": "progress",
+   "text": "I’ll add the short todo list and display its contents. (edited todo.txt, ran get-Content -LiteralPath todo.txt)",
+   "urgent": false
+  },
+  {
+   "id": "pmvxc3tlqh",
+   "sessionId": "01a19561-b08e-7762-84f6-bf34dd28c8ba",
+   "ts": "2026-11-01T04:32:59.835Z",
+   "kind": "done",
+   "text": "Done: Created todo.txt.",
+   "urgent": false
+  }
+ ],
+ "usage": {
+  "since": "1970-01-01T00:00:00.000Z",
+  "totals": {
+   "key": "total",
+   "label": "All agents",
+   "input": 19305,
+   "output": 2603,
+   "cacheRead": 323453,
+   "cacheWrite": 3515,
+   "total": 348876,
+   "costUsd": 0.00478891,
+   "unpriced": 55811
+  },
+  "byProvider": [
+   {
+    "key": "anthropic",
+    "label": "anthropic",
+    "input": 24,
+    "output": 2425,
+    "cacheRead": 287101,
+    "cacheWrite": 3515,
+    "total": 293065,
+    "costUsd": 0.00478891,
+    "unpriced": 0
+   },
+   {
+    "key": "openai",
+    "label": "openai",
+    "input": 19281,
+    "output": 178,
+    "cacheRead": 36352,
+    "cacheWrite": 0,
+    "total": 55811,
+    "costUsd": 0,
+    "unpriced": 55811
+   }
+  ],
+  "byModel": [
+   {
+    "key": "claude-haiku-5-5",
+    "label": "claude-haiku-5-5",
+    "input": 24,
+    "output": 2425,
+    "cacheRead": 287101,
+    "cacheWrite": 3515,
+    "total": 293065,
+    "costUsd": 0.00478891,
+    "unpriced": 0
+   },
+   {
+    "key": "gpt-5.6-terra",
+    "label": "gpt-5.6-terra",
+    "input": 19281,
+    "output": 178,
+    "cacheRead": 36352,
+    "cacheWrite": 0,
+    "total": 55811,
+    "costUsd": 0,
+    "unpriced": 55811
+   }
+  ],
+  "bySession": [
+   {
+    "key": "6bd5a383-5695-4eb0-b02e-0412b4cd9050",
+    "label": "Osprey · shop-api",
+    "input": 10,
+    "output": 807,
+    "cacheRead": 120967,
+    "cacheWrite": 1674,
+    "total": 123458,
+    "costUsd": 0.00194897,
+    "unpriced": 0
+   },
+   {
+    "key": "1e8caa56-1454-47a1-b121-826026757a71",
+    "label": "Thrush · config-svc",
+    "input": 8,
+    "output": 705,
+    "cacheRead": 95217,
+    "cacheWrite": 999,
+    "total": 96929,
+    "costUsd": 0.0015052700000000002,
+    "unpriced": 0
+   },
+   {
+    "key": "c0080e1e-53f9-4171-824f-ec6a45a112e3",
+    "label": "Dunlin · billing-hooks",
+    "input": 6,
+    "output": 913,
+    "cacheRead": 70917,
+    "cacheWrite": 842,
+    "total": 72678,
+    "costUsd": 0.00133467,
+    "unpriced": 0
+   },
+   {
+    "key": "01a19561-b08e-7762-84f6-bf34dd28c8ba",
+    "label": "Merlin · notes-cli",
+    "input": 19281,
+    "output": 178,
+    "cacheRead": 36352,
+    "cacheWrite": 0,
+    "total": 55811,
+    "costUsd": 0,
+    "unpriced": 55811
+   }
+  ],
+  "byDay": [
+   {
+    "key": "2026-11-01",
+    "label": "2026-11-01",
+    "input": 19305,
+    "output": 2603,
+    "cacheRead": 323453,
+    "cacheWrite": 3515,
+    "total": 348876,
+    "costUsd": 0.00478891,
+    "unpriced": 55811
+   }
+  ],
+  "byMcp": [],
+  "bySkill": [],
+  "pricesAsOf": "2026-10-06",
+  "unverifiedModels": []
+ }
+}

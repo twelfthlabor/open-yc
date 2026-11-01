@@ -1,0 +1,97 @@
+@import "@fontsource-variable/archivo/standard.css";
+
+/* One family, Archivo; its width axis does the expressive work (expanded for the wordmark and
+   headings, normal for reading). Light: sage paper + cobalt signal. Dark: slate + lighter cobalt. */
+:root {
+  --font: "Archivo Variable", "Archivo", system-ui, sans-serif;
+  --paper: #e9ece6;
+  --paper-2: #dfe4dc;
+  --ink: #17211c;
+  --ink-2: #3c4a43;
+  --muted: #5b6b62;
+  --line: #c6cec5;
+  --signal: #3b4bff;
+  --signal-ink: #ffffff;
+  --signal-soft: #d9ddff;
+  --urgent: #b97300;
+  --urgent-soft: #f7e3bd;
+  --error: #c2362a;
+  --ok: #217a52;
+  --focus: #3b4bff;
+  --radius-s: 6px;
+  --radius-m: 12px;
+  color-scheme: light;
+}
+
+.theme-dark {
+  --paper: #12161b;
+  --paper-2: #182027;
+  --ink: #e7ecef;
+  --ink-2: #c3ccd2;
+  --muted: #8796a1;
+  --line: #2a343d;
+  --signal: #7480ff;
+  --signal-ink: #0d1020;
+  --signal-soft: #232a55;
+  --urgent: #f2b134;
+  --urgent-soft: #3a2e14;
+  --error: #ff7a6b;
+  --ok: #5fd3a0;
+  --focus: #9aa3ff;
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  font-variant-numeric: tabular-nums;
+}
+
+a {
+  color: inherit;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+  color: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
