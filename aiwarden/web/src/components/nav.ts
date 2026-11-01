@@ -13,3 +13,9 @@ export const NAV = [
   { path: "guard", key: "r", label: "Guard", icon: ShieldCheck, group: "Activity" },
   { path: "weekly", key: "w", label: "Weekly report", icon: CalendarRange, group: "Activity" },
 ] as const;
+
+/** Document title for a route: the sidebar label, so #/mcp reads "MCP servers", not "Mcp". */
+export function pageTitle(path: string[]): string {
+  const n = NAV.find((x) => x.path === (path[0] || "")) || NAV[0];
+  return `${n.label} – aiwarden`;
+}

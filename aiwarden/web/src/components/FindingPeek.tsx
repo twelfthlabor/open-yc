@@ -3,6 +3,7 @@ import { ArrowDown, ArrowUp, Check, Copy, Laptop, X } from "lucide-react";
 import { href } from "../lib/router";
 import { isTyping } from "../lib/shortcuts";
 import type { Finding } from "../lib/types";
+import { REMEDIATION } from "../lib/remediation";
 import { Sev } from "./ui";
 
 /** Stable across reloads, so a peek link (#/findings?f=...) survives a refresh. */
@@ -24,7 +25,7 @@ export function FindingPeek({ rows, id, onClose, onMove }: Props) {
   const i = id ? rows.findIndex((f) => findingId(f) === id) : -1;
   const f = i >= 0 ? rows[i] : null;
   const ref = useRef<HTMLElement>(null);
-  const [copied, setCopied] = useState(false);
+  const [copied, setCopied] = useState<"" | "loc" | "cmd">("");
 
   useEffect(() => {
     if (!f) return;
@@ -46,7 +47,7 @@ export function FindingPeek({ rows, id, onClose, onMove }: Props) {
     return () => window.removeEventListener("keydown", key);
   }, [f, i, rows, onClose, onMove]);
 
-  useEffect(() => setCopied(false), [id]);
+  useEffect(() => setCopied(""), [id]);
   const open = Boolean(f);
   useEffect(() => {
     if (open) ref.current?.focus({ preventScroll: true });
@@ -54,10 +55,11 @@ export function FindingPeek({ rows, id, onClose, onMove }: Props) {
 
   if (!f) return null;
   const elsewhere = rows.filter((o) => o !== f && o.rule === f.rule);
-  const copy = () => {
-    if (!f.location) return;
-    navigator.clipboard?.writeText(f.location).then(() => setCopied(true), () => {});
+  const fix = Object.hasOwn(REMEDIATION, f.rule) ? REMEDIATION[f.rule] : null;
+  const copyText = (text: string, what: "loc" | "cmd") => {
+    navigator.clipboard?.writeText(text).then(() => setCopied(what), () => {});
   };
+  const copy = () => f.location && copyText(f.location, "loc");
 
   return (
     <aside ref={ref} className="peek" role="dialog" aria-label="Finding details" tabIndex={-1}>
@@ -87,7 +89,7 @@ export function FindingPeek({ rows, id, onClose, onMove }: Props) {
               <dd className="peek-loc">
                 <code>{f.location}</code>
                 <button className="icon-btn" type="button" onClick={copy} aria-label="Copy location" title="Copy location">
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
+                  {copied === "loc" ? <Check size={14} /> : <Copy size={14} />}
                 </button>
               </dd>
             </>
@@ -109,6 +111,25 @@ export function FindingPeek({ rows, id, onClose, onMove }: Props) {
             )}
           </dd>
         </dl>
+        {fix && (
+          <section className="peek-fix" aria-label="How to fix">
+            <h3>How to fix</h3>
+            <p className="muted">{fix.why}</p>
+            <ol>
+              {fix.steps.map((s) => (
+                <li key={s}>{s}</li>
+              ))}
+            </ol>
+            {fix.cmd && (
+              <div className="peek-cmd">
+                <code>{fix.cmd}</code>
+                <button className="icon-btn" type="button" onClick={() => copyText(fix.cmd!, "cmd")} aria-label="Copy command" title="Copy command">
+                  {copied === "cmd" ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </div>
+            )}
+          </section>
+        )}
         <h3>
           Same rule elsewhere <span className="muted">{elsewhere.length}</span>
         </h3>

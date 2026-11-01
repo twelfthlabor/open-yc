@@ -8,6 +8,8 @@ from __future__ import annotations
 import random
 from datetime import date, datetime, timedelta, timezone
 
+from .risk import is_pinned
+
 TODAY = date.today()
 NOW = datetime.now(timezone.utc).replace(microsecond=0)
 
@@ -28,7 +30,7 @@ SERVERS = [
     ("linear", "http", None, "https://mcp.linear.app/sse"),
     ("sentry", "http", None, "https://mcp.sentry.dev/mcp"),
     ("browser", "stdio", "@playwright/mcp", None),
-    ("internal-tools", "http", None, "https://tools.corp.example.com/mcp"),
+    ("internal-tools", "http", None, "http://tools.corp.example.com/mcp"),
     ("slack", "stdio", "slack-mcp-server@latest", None),
 ]
 FLEET = [
@@ -89,27 +91,35 @@ def report(dev_id, user, host, team, os_, apps, server_idx, scale, guard_on, rng
             secrets = [{"field": "env.GITHUB_TOKEN" if name == "github" else "env.SLACK_BOT_TOKEN", "kind": f"{name}_token",
                         "redacted": "ghp_Xq…(40 chars)" if name == "github" else "xoxb-…(57 chars)"}]
             findings.append({"rule": "MCP001", "severity": "high", "title": f"Plaintext {name} token in MCP config '{name}'",
-                             "subject": f"mcp:{client}:user:{name}", "detail": "Move it to the OS keychain or an env var the agent cannot read.",
+                             "subject": f"mcp:{client}:user:{name}", "detail": f"{secrets[0]['field']} = {secrets[0]['redacted']}. Move it to an env var or secret store.",
                              "location": f"~/.claude.json > mcpServers.{name}.env"})
-        if pkg and pkg.endswith("@latest"):
-            findings.append({"rule": "MCP004", "severity": "medium", "title": f"MCP server '{name}' runs an unpinned package",
-                             "subject": f"mcp:{client}:user:{name}", "detail": f"{pkg} resolves to whatever is newest at launch.", "location": ""})
-        if url and "corp.example.com" in url:
-            findings.append({"rule": "MCP003", "severity": "medium", "title": f"Remote MCP server '{name}' over a non-vendor host",
-                             "subject": f"mcp:{client}:user:{name}", "detail": url, "location": ""})
+        if pkg and not is_pinned("npx", pkg):
+            findings.append({"rule": "MCP003", "severity": "low", "title": f"MCP server '{name}' runs an unpinned package",
+                             "subject": f"mcp:{client}:user:{name}",
+                             "detail": f"`npx {pkg}` fetches whatever version is latest at launch (supply-chain risk). Pin a version.",
+                             "location": "~/.claude.json"})
+        if url and url.startswith("http://"):
+            host_ = url.split("/")[2]
+            findings.append({"rule": "MCP002", "severity": "medium", "title": f"Remote MCP server '{name}' uses unencrypted HTTP",
+                             "subject": f"mcp:{client}:user:{name}",
+                             "detail": f"{host_}: tool calls, results and auth headers travel in clear text.", "location": "~/.claude.json"})
         servers.append({"id": f"mcp:{client}:user:{name}", "client": client, "scope": "user", "name": name, "transport": transport,
                         "package": pkg, "url": url, "command": "npx" if pkg else None, "secrets": secrets})
     if "claude-code" in apps and dev_id in ("dev-omar", "dev-theo"):
-        findings.append({"rule": "AGT001", "severity": "high", "title": "Claude Code allows every Bash command without asking",
-                         "subject": "app:claude-code", "detail": 'permissions.allow contains "Bash(*)"', "location": "~/.claude/settings.json"})
+        findings.append({"rule": "AGT001", "severity": "high", "title": "Claude Code may run any shell command without asking",
+                         "subject": "app:claude-code", "detail": "permissions.allow contains ['Bash(*)'].", "location": "~/.claude/settings.json"})
+    # the same rules, severities and wording src/aiwarden/risk.py produces, so the demo shows what a real scan shows
     if dev_id == "dev-theo":
-        findings.append({"rule": "AGT003", "severity": "critical", "title": "Agent runs with --dangerously-skip-permissions in a shell alias",
-                         "subject": "app:claude-code", "detail": "alias cc='claude --dangerously-skip-permissions'", "location": "~/.bashrc"})
-    if not guard_on:
-        findings.append({"rule": "GRD000", "severity": "low", "title": "Guard hook is not installed", "subject": "device",
-                         "detail": "Run aiwarden hooks install --agent all", "location": ""})
-    findings.append({"rule": "EXT002", "severity": "info", "title": "AI browser extension with access to all sites",
-                     "subject": "ext:chrome:monica", "detail": "Monica - Your AI Copilot", "location": "Chrome Default profile"})
+        findings.append({"rule": "AGT002", "severity": "high", "title": "Claude Code defaults to bypassPermissions",
+                         "subject": "app:claude-code", "detail": "All tool calls run without confirmation.", "location": "~/.claude/settings.json"})
+    if not guard_on and "claude-code" in apps:
+        findings.append({"rule": "AGT004", "severity": "info", "title": "No pre-execution guard on Claude Code", "subject": "app:claude-code",
+                         "detail": "Run `aiwarden hooks install` to block destructive commands and secret leaks before they run.",
+                         "location": "~/.claude/settings.json"})
+    findings.append({"rule": "EXT001", "severity": "medium", "title": "AI browser extension 'Monica - Your AI Copilot' can read every site",
+                     "subject": "ext:chrome:monica",
+                     "detail": "It has <all_urls>-style access: page contents, including internal apps, can reach a third-party AI.",
+                     "location": "chrome/Default"})
 
     guard = []
     if guard_on:
@@ -160,7 +170,7 @@ def report(dev_id, user, host, team, os_, apps, server_idx, scale, guard_on, rng
             edge("app:claude-code", f"skill:{sk}", "has_skill")
     node("browser:chrome", "browser", "Chrome")
     edge(f"device:{dev_id}", "browser:chrome", "has_browser")
-    node("ext:chrome:monica", "extension", "Monica - Your AI Copilot", max_severity="info", findings=1)
+    node("ext:chrome:monica", "extension", "Monica - Your AI Copilot", max_severity="medium", findings=1)
     edge("browser:chrome", "ext:chrome:monica", "has_extension")
     for k in ("app:claude-code",):
         if k in nodes and k in sev_by_subject:

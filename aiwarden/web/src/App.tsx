@@ -3,6 +3,7 @@ import { adoptTokenFromHash, api, tokenStore } from "./lib/api";
 import { useRoute } from "./lib/router";
 import { useApi } from "./lib/useApi";
 import { Shell, type Theme } from "./components/Shell";
+import { pageTitle } from "./components/nav";
 import { ErrorNote, Loading } from "./components/ui";
 import { Connect } from "./pages/Connect";
 import { Overview } from "./pages/Overview";
@@ -18,6 +19,7 @@ import { Alerts } from "./pages/Alerts";
 import { Weekly } from "./pages/Weekly";
 
 const THEME_KEY = "aiwarden_theme";
+const LIVE_MS = 30_000;
 
 function loadTheme(): Theme {
   try {
@@ -59,9 +61,21 @@ export function App() {
   const fleet = useApi(() => (token ? api.fleet() : Promise.resolve(null)), token, onUnauthorized);
 
   useEffect(() => {
-    const page = route.path[0] || "overview";
-    document.title = `${page.charAt(0).toUpperCase()}${page.slice(1)} – aiwarden`;
+    document.title = pageTitle(route.path);
   }, [route.path]);
+
+  // Devices push on their own schedule; poll so new reports appear without a manual refresh.
+  const { reload } = fleet;
+  useEffect(() => {
+    if (!token) return;
+    const tick = () => document.visibilityState === "visible" && reload();
+    const t = window.setInterval(tick, LIVE_MS);
+    document.addEventListener("visibilitychange", tick);
+    return () => {
+      window.clearInterval(t);
+      document.removeEventListener("visibilitychange", tick);
+    };
+  }, [token, reload]);
 
   if (!token) {
     return (
@@ -116,8 +130,11 @@ export function App() {
     }
   }
   return (
-    <Shell current={section === "devices" ? "devices" : section} fleet={F} theme={theme} onTheme={setTheme} onRefresh={fleet.reload} onSignOut={signOut}>
-      {body}
+    <Shell current={section === "devices" ? "devices" : section} fleet={F} stale={fleet.stale} theme={theme} onTheme={setTheme} onRefresh={fleet.reload} onSignOut={signOut}>
+      {/* keyed by path so each page plays its entrance once; query changes (filters, peeks) do not remount */}
+      <div className="page-enter" key={route.path.join("/")}>
+        {body}
+      </div>
     </Shell>
   );
 }

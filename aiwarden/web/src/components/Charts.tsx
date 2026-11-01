@@ -111,7 +111,7 @@ export function AreaChart({ points, height = 220, format = compact, labels = ["T
         </desc>
         <Frame max={max} height={height} format={format} n={n} points={points} />
         <path className="area" d={`${path}L${x(n - 1)},${height - 24}L${x(0)},${height - 24}Z`} />
-        <path className="line" d={path} />
+        <path className="line" d={path} pathLength={1} />
         {hp && (
           <>
             <line className="cursor" x1={x(i!)} x2={x(i!)} y1={8} y2={height - 24} />

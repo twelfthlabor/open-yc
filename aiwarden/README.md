@@ -317,16 +317,21 @@ the console removes it from the address bar after reading it.
 |---|---|
 | Overview | One sentence on the fleet's state, 30-day token trend, top findings, agents and models, recent guard decisions |
 | Ask | Plain-English questions over the fleet (`aiwarden ask` in the browser), with the structured query it ran |
-| Findings | Every finding, filterable by severity and text, linked to its device |
+| Findings | Every finding, filterable by severity and text, linked to its device, with how to fix it and the command to run |
 | Alerts | Everything the alert rules would raise right now |
-| Devices / device | Per-device inventory and an interactive relationship map (drag, zoom, select) of apps, MCP servers, packages, hosts, models and skills |
+| Devices / device | Per-device inventory and an interactive relationship map (drag, zoom, select) of apps, MCP servers, packages, hosts, models and skills, with an attack-path view from the user to each risky item |
 | MCP servers | Servers grouped by package or URL across the fleet, and the tool-poisoning scan rules |
 | Browser | AI sites used and what the extension's DLP caught |
 | Usage | Daily input/output tokens, spend by agent, per-model table |
 | Guard | Decisions, the rule catalogue with hit counts, and a tester that shows what the guard decides for a command (nothing is run) |
 | Weekly report | The weekly report, printable |
 
-Press Ctrl K (⌘K on a Mac) for the command menu. Light, dark and system themes are built in.
+Press Ctrl K (⌘K on a Mac) for the command menu. Light, dark and system themes are built in. The fleet data
+behind the console refreshes every 30 seconds while the tab is visible; if the collector stops answering, the
+console keeps the last data and says so. Page entrances, chart draw-ins and number count-ups turn off with
+the OS "reduce motion" setting.
+
+How this compares with the commercial product it is modeled on: [docs/PARITY.md](docs/PARITY.md).
 
 ![Device relationship map](docs/screenshots/device-dark.png)
 
