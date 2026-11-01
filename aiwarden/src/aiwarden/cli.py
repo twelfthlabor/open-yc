@@ -462,22 +462,41 @@ def cmd_check(args) -> int:
 
 def cmd_serve(args) -> int:
     from .config import config_path, load_config, merge_teams
-    from .server import Store, make_server
+    import threading
+    from .server import LOOPBACK, Store, make_server
     env = _env(args)
     given = args.token or os.environ.get("AIWARDEN_TOKEN")
-    token = given or pysecrets.token_urlsafe(24)
+    # The local console on this machine needs no token; anything another machine can reach does.
+    tokenless = args.local and not given and args.host in LOOPBACK
+    token = None if tokenless else (given or pysecrets.token_urlsafe(24))
     db = Path(args.db) if args.db else env.state_dir / "fleet.db"
+    rescan = None
     if args.local:
         from .report import build_report
-        Store(db).add(build_report(env, processes=_processes(args)))
+
+        def rescan():
+            return build_report(env, processes=_processes(args))
+
+        Store(db).add(rescan())
     config = merge_teams(load_config(config_path(env)), load_config(Path(args.teams)) if args.teams else None)
-    srv = make_server(args.host, args.port, db, token, config=config)
+    srv = make_server(args.host, args.port, db, token, config=config, mode="local" if args.local else "collector", rescan=rescan)
     url = f"http://{args.host}:{srv.server_address[1]}/"
-    print(f"aiwarden collector on {url}  db={db}", flush=True)
-    if not given:
+    print(f"aiwarden {'console' if args.local else 'collector'} on {url}  db={db}", flush=True)
+    if tokenless:
+        print(f"open:  {url}", flush=True)
+    elif not given:
         print(f"token: {token}", flush=True)
         # the console reads the token from the fragment, which browsers never send to the server
         print(f"open:  {url}#token={token}", flush=True)
+    every = getattr(args, "rescan_every", 0) or 0
+    if args.local and every > 0 and srv.RequestHandlerClass.rescan_now:
+        stop = threading.Event()
+
+        def loop():
+            while not stop.wait(every):
+                srv.RequestHandlerClass.rescan_now()
+
+        threading.Thread(target=loop, daemon=True).start()
     try:
         srv.serve_forever()
     except KeyboardInterrupt:
@@ -621,7 +640,10 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--port", type=int, default=8765)
     s.add_argument("--db")
     s.add_argument("--token")
-    s.add_argument("--local", action="store_true", help="ingest this device's report at startup")
+    s.add_argument("--local", action="store_true",
+                   help="the console for this device: scan at startup and rescan from the console; no token on 127.0.0.1")
+    s.add_argument("--rescan-every", type=int, default=300, metavar="SECONDS",
+                   help="with --local, rescan this device this often (0 = only when asked from the console)")
     s.add_argument("--teams", help="TOML file with a [teams] mapping, layered over ~/.aiwarden/config.toml")
     s.set_defaults(fn=cmd_serve)
 

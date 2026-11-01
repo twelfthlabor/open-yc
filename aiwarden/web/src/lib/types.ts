@@ -196,3 +196,44 @@ export interface Weekly {
   risky_events: Row[];
   apps: Row[];
 }
+
+/** What kind of server the console is talking to. Only this, never a build flag, changes the layout. */
+export interface Meta {
+  mode: "local" | "collector" | "demo";
+  auth: "none" | "token";
+  read_only: boolean;
+  rescan: { available: boolean; running: boolean; last: string | null; error: string | null };
+}
+
+export interface SessionRow {
+  app: string;
+  project?: string | null;
+  start: string;
+  end?: string | null;
+  models?: string[];
+  input_tokens?: number;
+  output_tokens?: number;
+  cache_read_tokens?: number;
+  cost_usd?: number;
+  tool_calls?: number;
+  mcp_servers?: string[];
+  hostname: string;
+  device_id: string;
+}
+
+export interface ProjectRow { device_id: string; hostname: string; project: string; sessions: number; input_tokens: number; output_tokens: number; cache_read_tokens: number; cost_usd: number }
+export interface RiskyRow { timestamp?: string; app?: string; tool?: string; rule?: string; action?: string; reason?: string; project?: string; subject?: string; hostname: string; device_id: string }
+export interface AgentConfig { device_id: string; hostname: string; guard_installed: boolean; hooks: { event?: string; matcher?: string; scope?: string }[]; plugins: string[]; agents: string[]; skills: string[]; default_mode?: string | null }
+
+export interface Insights {
+  sessions: SessionRow[];
+  sessions_total: number;
+  projects: ProjectRow[];
+  tools: { tool: string; calls: number }[];
+  mcp_calls: { server: string; calls: number; tools: { tool: string; calls: number }[] }[];
+  risky_events: RiskyRow[];
+  risky_total: number;
+  agents: AgentConfig[];
+  tokens: { input_tokens: number; output_tokens: number; cache_read_tokens: number; cache_write_tokens: number; cost_usd: number };
+  pricing: { unpriced_models: string[]; unverified_models: string[]; prices_as_of: string | null };
+}

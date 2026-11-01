@@ -22,7 +22,7 @@ _db.unlink(missing_ok=True)
 _store = Store(_db)
 populate(_store)
 
-_Collector = make_handler(_store, TOKEN, config=DEMO_CONFIG, read_only=True)
+_Collector = make_handler(_store, TOKEN, config=DEMO_CONFIG, read_only=True, mode="demo")
 
 
 class handler(_Collector):  # Vercel looks for a top-level class named `handler`

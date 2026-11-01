@@ -1,4 +1,4 @@
-import type { AskResult, Alert, Decision, Fleet, Report, Rules, Weekly } from "./types";
+import type { AskResult, Alert, Decision, Fleet, Insights, Meta, Report, Rules, Weekly } from "./types";
 
 const KEY = "aiwarden_token";
 let memory = "";
@@ -44,7 +44,9 @@ export function adoptTokenFromHash(loc: Location = window.location, hist: Histor
 }
 
 async function call<T>(path: string, init?: RequestInit): Promise<T> {
-  const headers: Record<string, string> = { Authorization: `Bearer ${tokenStore.get()}` };
+  // The local console (aiwarden serve --local) needs no token; send one only when there is one.
+  const t = tokenStore.get();
+  const headers: Record<string, string> = t ? { Authorization: `Bearer ${t}` } : {};
   if (init?.body) headers["Content-Type"] = "application/json";
   const r = await fetch(path, { ...init, headers });
   if (r.status === 401) throw new Unauthorized("The collector rejected this token.");
@@ -66,7 +68,10 @@ function post<T>(path: string, data: unknown): Promise<T> {
 }
 
 export const api = {
+  meta: () => call<Meta>("/api/meta"),
   fleet: () => call<Fleet>("/api/fleet"),
+  insights: () => call<Insights>("/api/insights"),
+  rescan: () => post<{ started: boolean; running: boolean }>("/api/rescan", {}),
   device: (id: string) => call<Report>(`/api/devices/${encodeURIComponent(id)}`),
   rules: () => call<Rules>("/api/rules"),
   weekly: (asOf?: string) => call<Weekly>(`/api/weekly${asOf ? `?as_of=${encodeURIComponent(asOf)}` : ""}`),

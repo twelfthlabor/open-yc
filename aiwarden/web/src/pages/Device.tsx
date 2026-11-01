@@ -43,8 +43,8 @@ export function McpTable({ rows }: { rows: McpServer[] }) {
   );
 }
 
-export function Device({ id, onUnauthorized }: { id: string; onUnauthorized: () => void }) {
-  const r = useApi(() => api.device(id), id, onUnauthorized);
+export function Device({ id, rev = 0, onUnauthorized }: { id: string; rev?: number; onUnauthorized: () => void }) {
+  const r = useApi(() => api.device(id), `${id}|${rev}`, onUnauthorized);
   const back = (
     <a className="crumb" href={href("devices")}>
       <ArrowLeft size={15} /> Devices
@@ -76,8 +76,8 @@ export function Device({ id, onUnauthorized }: { id: string; onUnauthorized: () 
         <Stat value={s.guard_installed ? "On" : "Off"} label="Guard" delta={s.guard_blocks ? `${s.guard_blocks} blocked` : undefined} />
       </div>
 
-      <Block title="Relationship map" aside={<span className="aside hide-sm">Drag to move, scroll to zoom, select a node for details</span>}>
-        {rep.graph.nodes.length ? <RelationshipGraph nodes={rep.graph.nodes} edges={rep.graph.edges} /> : <Empty title="No graph in this report" />}
+      <Block title="Relationship map" aside={<span className="aside hide-sm">Drag to move, scroll to zoom, select a node for details. <a href={href("graph")}>Whole fleet</a></span>}>
+        {rep.graph.nodes.length ? <RelationshipGraph nodes={rep.graph.nodes} edges={rep.graph.edges} findings={rep.findings} /> : <Empty title="No graph in this report" />}
       </Block>
 
       <Block title="Findings" aside={<span className="aside">{rep.findings.length}</span>}>

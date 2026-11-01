@@ -66,7 +66,7 @@ export function Overview({ fleet }: { fleet: Fleet }) {
         )}
         {blocked ? (
           <>
-            , and the guard blocked <a href={href("guard")}>{plural(blocked, "action")}</a>.
+            , and the guard{t.guarded_devices ? "" : ", now off on every device,"} blocked <a href={href("guard")}>{plural(blocked, "action")}</a>.
           </>
         ) : (
           "."

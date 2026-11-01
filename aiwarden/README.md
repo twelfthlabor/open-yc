@@ -15,7 +15,7 @@ git clone <this repo> && cd aiwarden
 pip install .                   # not on PyPI yet; add [proc] for psutil-based process discovery
 aiwarden scan                   # inventory + posture findings + usage on this machine
 aiwarden hooks install --agent all   # block destructive agent actions in Claude Code, Gemini CLI and Codex
-aiwarden serve --local          # web console: open the link it prints
+aiwarden serve --local          # web console for this machine: http://127.0.0.1:8765, no token
 ```
 
 ## What it does
@@ -309,9 +309,13 @@ scripts or styles, no third-party origins).
 
 ![Overview](docs/screenshots/overview.png)
 
-`aiwarden serve` serves a web console from the same port. It prints a link ending in
-`#token=...`; the token stays in the URL fragment, which browsers never send to the server, and
-the console removes it from the address bar after reading it.
+`aiwarden serve --local` is the console for your own machine. It scans at startup, rescans every
+five minutes (`--rescan-every`, or the refresh button), and needs no token: it listens on 127.0.0.1
+only, answers only requests whose Host and Origin are its own page (so another web page cannot reach
+it), and takes no uploads. A collector that other machines push to (`aiwarden serve`, or `--local`
+with `--host 0.0.0.0`) always needs a token. It prints a link ending in `#token=...`; the token stays
+in the URL fragment, which browsers never send to the server, and the console removes it from the
+address bar after reading it.
 
 | Page | What it shows |
 |---|---|
@@ -319,6 +323,8 @@ the console removes it from the address bar after reading it.
 | Ask | Plain-English questions over the fleet (`aiwarden ask` in the browser), with the structured query it ran |
 | Findings | Every finding, filterable by severity and text, linked to its device, with how to fix it and the command to run |
 | Alerts | Everything the alert rules would raise right now |
+| Graph | Every device's map merged into one live, searchable fleet graph (Obsidian-style: it blooms in, edges that carry MCP calls flow, an inspector explains the selected item), plus the packages and hosts several devices share |
+| Insights | When agents work (weekday by hour, in your time zone), spend by project, the tools and MCP servers agents call, recent sessions, what the guard would have stopped, and each device's Claude Code hooks, plugins, subagents and skills |
 | Devices / device | Per-device inventory and an interactive relationship map (drag, zoom, select) of apps, MCP servers, packages, hosts, models and skills, with an attack-path view from the user to each risky item |
 | MCP servers | Servers grouped by package or URL across the fleet, and the tool-poisoning scan rules |
 | Browser | AI sites used and what the extension's DLP caught |

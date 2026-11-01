@@ -15,6 +15,8 @@ import { pageTitle } from "./components/nav";
 import { REMEDIATION } from "./lib/remediation";
 import { attackPaths } from "./components/Graph";
 import { tweenText } from "./lib/motion";
+import { mergeGraphs } from "./lib/fleetGraph";
+import { heatmap } from "./pages/Insights";
 import { Stat } from "./components/ui";
 import { useApi } from "./lib/useApi";
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -92,6 +94,54 @@ describe("attack paths", () => {
     ];
     const edges = [["device:d", "app:cc"], ["app:cc", "mcp:fs"], ["mcp:fs", "pkg:fs"], ["app:cc", "model:m"], ["app:cc", "skill:s"]].map(([source, target]) => ({ source, target, type: "x" }));
     expect([...attackPaths(nodes, edges).nodes].sort()).toEqual(["app:cc", "device:d", "mcp:fs", "pkg:fs"]);
+  });
+});
+
+describe("fleet graph", () => {
+  const dev = (id: string, host: string, risky: boolean) => ({
+    device: { id, hostname: host },
+    graph: {
+      nodes: [
+        { id: `device:${id}`, type: "device", label: host },
+        { id: "user:maya", type: "user", label: "maya" },
+        { id: "app:claude-code", type: "app", label: "Claude Code", meta: risky ? { max_severity: "high", findings: 1 } : {} },
+        { id: "mcp:claude-code:user:github", type: "mcp", label: "github" },
+        { id: "pkg:@mcp/github", type: "package", label: "@mcp/github" },
+        { id: "model:opus", type: "model", label: "opus" },
+      ],
+      edges: [
+        ["user:maya", `device:${id}`], [`device:${id}`, "app:claude-code"], ["app:claude-code", "mcp:claude-code:user:github"],
+        ["mcp:claude-code:user:github", "pkg:@mcp/github"], ["app:claude-code", "model:opus"],
+      ].map(([source, target]) => ({ source, target, type: "x" })),
+    },
+  });
+  it("keeps each device's apps and servers apart and shares packages, models and people", () => {
+    const g = mergeGraphs([dev("d1", "a", true), dev("d2", "b", false)]);
+    const ids = g.nodes.map((n) => n.id);
+    expect(ids.filter((i) => i.endsWith("app:claude-code"))).toHaveLength(2);
+    expect(ids.filter((i) => i === "pkg:@mcp/github")).toHaveLength(1);
+    expect(ids.filter((i) => i === "model:opus")).toHaveLength(1);
+    expect(ids.filter((i) => i === "user:maya")).toHaveLength(1);
+    expect(new Set(g.edges.map((e) => `${e.source}>${e.target}`)).size).toBe(g.edges.length);
+    const app = g.nodes.find((n) => n.id === "d1/app:claude-code")!;
+    expect(app.meta).toMatchObject({ device_id: "d1", subject: "app:claude-code", hostname: "a" });
+  });
+  it("never lights another device's nodes as an attack path", () => {
+    const g = mergeGraphs([dev("d1", "a", true), dev("d2", "b", false)]);
+    const p = attackPaths(g.nodes, g.edges);
+    expect([...p.nodes].some((i) => i.startsWith("d2/"))).toBe(false);
+    expect(p.nodes.has("device:d2")).toBe(false);
+    expect(p.nodes.has("d1/mcp:claude-code:user:github")).toBe(true);
+  });
+});
+
+describe("insights", () => {
+  it("buckets session starts by weekday and hour in the viewer's time zone", () => {
+    const local = new Date(2026, 9, 26, 14, 30); // a Monday, 14:30 local
+    const h = heatmap([{ start: local.toISOString() }, { start: local.toISOString() }, { start: "not a date" }]);
+    expect(h.cells[0][14]).toBe(2); // Monday row, 14:00 column
+    expect(h.max).toBe(2);
+    expect(h.total).toBe(2);
   });
 });
 

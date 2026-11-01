@@ -1,6 +1,7 @@
 """Inventory of AI apps, agents, editor extensions, browser extensions and Claude Code config."""
 from __future__ import annotations
 
+import os
 import re
 import subprocess
 import sys
@@ -317,7 +318,13 @@ def discover_claude_config(env: Env) -> dict | None:
     for proj in projects:
         settings_files += [("project", proj / ".claude" / "settings.json"), ("local", proj / ".claude" / "settings.local.json")]
     hooks, allow, mode, sources = [], [], None, []
+    seen: set[str] = set()
     for scope, path in settings_files:
+        # the home directory is often a Claude Code project too; its .claude/settings.json is the user file
+        key = os.path.normcase(os.path.abspath(path))
+        if key in seen:
+            continue
+        seen.add(key)
         d = read_json(path)
         if not isinstance(d, dict):
             continue
