@@ -318,7 +318,14 @@
   grid-template-columns: 44px minmax(0, 1fr);
 }
 
+/* the number sits in the first column; the heading and its text both stay in the second */
+.steps li > * {
+  grid-column: 2;
+}
+
 .steps li::before {
+  grid-column: 1;
+  grid-row: 1 / span 2;
   content: counter(step);
   font-weight: 800;
   font-stretch: 125%;

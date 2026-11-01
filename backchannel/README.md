@@ -6,7 +6,7 @@ Every agent session on your machine reports into one channel. You see progress d
 
 It runs on your machine, needs no account and no API key, and works on Windows, macOS and Linux.
 
-**Demo:** `npm run build:demo && npm run preview` serves the landing page and a console that replays a recorded run of real agents, with no server needed; replies typed there are not sent anywhere. The same build deploys as a static site with the included `vercel.json`.
+**Live demo: https://backchannel-demo-ruby.vercel.app**. It shows the landing page and the same console the local app serves, replaying a recorded run of real agents; replies typed there are not sent anywhere. To build it yourself: `npm run build:demo && npm run preview`. It deploys as a static site with the included `vercel.json`.
 
 It is an open-source take on the product [Agent FM](https://www.ycombinator.com/companies/agent-fm) (YC F26) launched as "one group chat to hear and steer your coding agents". **Not affiliated with Agent FM or isoquant**, and it uses none of their name, branding, copy or code. `docs/RESEARCH.md` has the research and `docs/PARITY.md` compares capabilities.
 
