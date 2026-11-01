@@ -91,6 +91,8 @@ npm run build:demo && npm run e2e     # demo build in headless Chrome: replay, s
 npm run build && npm run verify:live  # real agents; spends a few cents
 ```
 
+`e2e` and `verify:live` need Google Chrome (set `CHROME_PATH` if it isn't at the Windows default), and `verify:live` needs `claude` and `codex` signed in. Set `BC_CODEX_MODEL` to a Codex model your account can use (the default is `gpt-5.6-terra`).
+
 `verify:live` does the following:
 1. Starts a real server scoped to throwaway projects, with the hooks installed by `install()` into those projects only.
 2. Opens the console in headless Chrome.
