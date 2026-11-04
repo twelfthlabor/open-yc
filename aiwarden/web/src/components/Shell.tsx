@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { LogOut, Menu, Monitor, Moon, RefreshCw, Search, Sun } from "lucide-react";
+import { clearFileReport, fileReportName } from "../lib/api";
 import { ago } from "../lib/format";
 import { go, href } from "../lib/router";
 import { SEQUENCE_MS, shortcut } from "../lib/shortcuts";
 import type { Fleet, Meta } from "../lib/types";
 import { CommandMenu } from "./CommandMenu";
 import { NAV } from "./nav";
+import { OpenReportButton, useReportDrop } from "./OpenReport";
 import { ShortcutHelp } from "./ShortcutHelp";
 
 export type Theme = "system" | "light" | "dark";
@@ -67,6 +69,8 @@ export function Shell({ current, fleet, meta, stale, theme, onTheme, onRefresh, 
     return () => window.removeEventListener("keydown", key);
   }, [overlayOpen]);
   useEffect(() => setDrawer(false), [current]);
+  const fileMode = meta?.mode === "file";
+  const drop = useReportDrop(meta?.mode === "demo" || fileMode);
 
   const t = fleet?.totals;
   const serious = (t?.findings?.critical || 0) + (t?.findings?.high || 0);
@@ -85,19 +89,23 @@ export function Shell({ current, fleet, meta, stale, theme, onTheme, onRefresh, 
       ? `Offline, data from ${ago(fleet.generated_at)}`
       : scanning
         ? "Scanning this device…"
-        : meta?.mode === "local"
+        : fileMode
+          ? `Your report, from ${ago(newest)}`
+          : meta?.mode === "local"
           ? `Scanned ${ago(meta.rescan.last || newest)}`
           : `Live · updated ${ago(fleet.generated_at)}`;
   const statusTitle = meta?.rescan.error
     ? `The last rescan failed: ${meta.rescan.error}`
-    : meta?.mode === "local"
+    : fileMode
+      ? "A report file opened in this tab; it was not uploaded"
+      : meta?.mode === "local"
       ? "aiwarden rescans this device every few minutes; the refresh button rescans now"
       : "Refreshes every 30 seconds while this tab is open";
   let group = "";
   const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
   return (
-    <div className={`shell${drawer ? " open" : ""}`}>
+    <div className={`shell${drawer ? " open" : ""}${drop.dragging ? " dropping" : ""}`}>
       <a className="sr-only" href="#main">
         Skip to content
       </a>
@@ -170,14 +178,37 @@ export function Shell({ current, fleet, meta, stale, theme, onTheme, onRefresh, 
         </div>
         <main id="main" className="page" tabIndex={-1}>
           {meta?.mode === "demo" && (
-            <p className="demo-note no-print">
-              Public demo with six made-up laptops. It is read-only; run <code>aiwarden serve</code> to see your own fleet.{" "}
-              <a href="https://github.com/twelfthlabor/open-yc/tree/main/aiwarden">Source on GitHub</a>
+            <div className="demo-note no-print">
+              <span>
+                Public demo with six made-up laptops. It is read-only; run <code>aiwarden serve --local</code> to see your own machine.{" "}
+                <a href="https://github.com/twelfthlabor/open-yc/tree/main/aiwarden">Source on GitHub</a>
+              </span>
+              <OpenReportButton className="link-btn" />
+            </div>
+          )}
+          {fileMode && (
+            <div className="demo-note file-note no-print" role="status">
+              <span>
+                Showing <b>{fileReportName()}</b>, read in this tab. It was not uploaded and is gone when you close or reload the tab.
+              </span>
+              <button type="button" className="link-btn" onClick={clearFileReport}>
+                Close report and return to the demo
+              </button>
+            </div>
+          )}
+          {drop.error && (
+            <p className="error drop-error" role="alert">
+              {drop.error}
             </p>
           )}
           {children}
         </main>
       </div>
+      {drop.dragging && (
+        <div className="drop-overlay" aria-hidden="true">
+          <p>Drop your aiwarden report to open it in this tab</p>
+        </div>
+      )}
       <ShortcutHelp open={help} onClose={() => setHelp(false)} />
       <CommandMenu open={palette} onOpenChange={setPalette} fleet={fleet} onTheme={() => onTheme(NEXT[theme])} />
     </div>

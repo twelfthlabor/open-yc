@@ -1,0 +1,16 @@
+{
+  // Compiles the CLI and server to plain JS in lib/ for the published package. Node strips types
+  // from local files but not from files under node_modules, so `npx backchannel` needs real JS.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "outDir": "lib",
+    "rootDir": "src",
+    "rewriteRelativeImportExtensions": true,
+    "lib": ["ES2023"],
+    "types": ["node"],
+    "declaration": false,
+    "sourceMap": false
+  },
+  "include": ["src"]
+}

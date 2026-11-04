@@ -76,8 +76,12 @@ def _save(path: Path, data: dict) -> None:
     if path.exists():
         shutil.copy2(path, path.with_name(path.name + ".aiwarden.bak"))
     tmp = path.with_name(path.name + ".tmp")
-    tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
-    tmp.replace(path)
+    try:
+        tmp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+        tmp.replace(path)
+    except OSError:
+        tmp.unlink(missing_ok=True)  # don't leave a second copy of the settings behind
+        raise
 
 
 def _is_guard(h) -> bool:

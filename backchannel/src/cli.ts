@@ -3,13 +3,16 @@
 //   serve                       start the local server and web app (default port 47321)
 //   hooks install|uninstall|status [--agent claude-code|codex|all] [--project DIR]
 //   usage [--days N] [--json]   token usage and estimated cost from local transcripts
+//   doctor [--project DIR]      check the setup and say how to fix what is wrong
+import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { Store } from "./core/store.ts";
 import type { AgentKind, UsageRow } from "./core/types.ts";
-import { install, settingsPath, status, uninstall } from "./server/install.ts";
+import { doctor, formatChecks } from "./server/doctor.ts";
+import { handlerFor, install, settingsPath, stableHook, status, uninstall } from "./server/install.ts";
 import { resolvePaths } from "./server/paths.ts";
 import { serve } from "./server/server.ts";
 import { TranscriptWatcher } from "./server/watch.ts";
@@ -29,18 +32,28 @@ const { positionals, values } = parseArgs({
     "no-intro": { type: "boolean" },
     dev: { type: "boolean" },
     json: { type: "boolean" },
+    open: { type: "boolean" },
     help: { type: "boolean", short: "h" },
   },
 });
 
 const HELP = `backchannel: one group chat to hear and steer your coding agents
 
-  backchannel serve [--port 47321] [--since-hours 24] [--only DIR]... [--mid-run] [--no-intro] [--dev]
+  backchannel serve [--port 47321] [--since-hours 24] [--only DIR]... [--mid-run] [--no-intro] [--open] [--dev]
   backchannel hooks install   [--agent claude-code|codex|all] [--project DIR]
   backchannel hooks uninstall [--agent claude-code|codex|all] [--project DIR]
   backchannel hooks status    [--project DIR]
   backchannel usage [--days 7] [--json]
+  backchannel doctor [--project DIR]
 `;
+
+// Opens a URL in the default browser. Best effort: if it fails, the link is printed anyway.
+function openBrowser(url: string): void {
+  const [cmd, args] = process.platform === "win32" ? ["cmd", ["/c", "start", "", url]] : process.platform === "darwin" ? ["open", [url]] : ["xdg-open", [url]];
+  try {
+    spawn(cmd, args, { detached: true, stdio: "ignore", windowsHide: true }).on("error", () => {}).unref();
+  } catch {}
+}
 
 function agents(): AgentKind[] {
   const a = values.agent ?? "all";
@@ -94,6 +107,7 @@ async function main() {
     console.log(`watching ${running.watcher.files.length} transcript files, ${running.store.sessions.size} sessions`);
     if (!installed.length) console.log("hooks are not installed: you can read agents but not reply. Run: backchannel hooks install");
     if (values.dev) console.log(`dev UI: http://localhost:5173/app.html#token=${running.token}`);
+    if (values.open) openBrowser(running.url);
     const stop = () => void running.close().then(() => process.exit(0));
     process.on("SIGINT", stop);
     process.on("SIGTERM", stop);
@@ -104,7 +118,8 @@ async function main() {
     for (const agent of agents()) {
       const path = settingsPath(agent, scope());
       if (sub === "install") {
-        const added = install(agent, path);
+        // Point settings at a copy in ~/.backchannel, which outlives an npx cache or a moved clone.
+        const added = install(agent, path, handlerFor(agent, { hook: stableHook(paths.home) }));
         console.log(`${agent}: ${added.length ? `added ${added.join(", ")}` : "already installed"} in ${path}`);
         if (agent === "codex" && added.length) console.log("  Codex runs new hooks only after you trust them: open Codex and run /hooks.");
       } else if (sub === "uninstall") {
@@ -117,6 +132,15 @@ async function main() {
         throw new Error("usage: backchannel hooks install|uninstall|status");
       }
     }
+    return;
+  }
+
+  if (cmd === "doctor") {
+    const checks = await doctor({ paths, scope: scope() });
+    console.log(formatChecks(checks));
+    const failed = checks.filter((c) => c.level === "fail").length;
+    console.log(failed ? `\n${failed} problem${failed > 1 ? "s" : ""} found.` : "\nNo problems found.");
+    process.exitCode = failed ? 1 : 0;
     return;
   }
 

@@ -6,11 +6,17 @@ Every agent session on your machine reports into one channel. You see progress d
 
 It runs on your machine, needs no account and no API key, and works on Windows, macOS and Linux.
 
-**Live demo: https://backchannel-demo-ruby.vercel.app**. It shows the landing page and the same console the local app serves, replaying a recorded run of real agents; replies typed there are not sent anywhere. To build it yourself: `npm run build:demo && npm run preview`. It deploys as a static site with the included `vercel.json`.
+**Live demo: https://backchannel-demo-ruby.vercel.app**. It shows the landing page and the same console the local app serves, replaying a recorded run of real agents; replies typed there are not sent anywhere.
+
+**See your own spend without installing anything:** open [the demo's Spend view](https://backchannel-demo-ruby.vercel.app/app.html#spend) and drop your `~/.claude/projects` or `~/.codex/sessions` folder on it. The files are read in your browser tab with the same parsers and prices as the local app; nothing is uploaded (the page's CSP allows connections only to its own origin). To build it yourself: `npm run build:demo && npm run preview`. It deploys as a static site with the included `vercel.json`.
 
 It is an open-source take on the product [Agent FM](https://www.ycombinator.com/companies/agent-fm) (YC F26) launched as "one group chat to hear and steer your coding agents". **Not affiliated with Agent FM or isoquant**, and it uses none of their name, branding, copy or code. `docs/RESEARCH.md` has the research and `docs/PARITY.md` compares capabilities.
 
 ![The channel during a live run: four agents, a failing test, a decision, a blocker, and a reply marked delivered](docs/screenshots/live-station.png)
+
+![Replay of the recorded run: four agents report in, a test fails, a reply typed in the chat is delivered as the agent finishes its turn, and the agent then writes the README it was asked for](docs/screenshots/reply-loop.gif)
+
+The GIF is the hosted demo replaying a recorded run of real agents (`web/public/demo/run.json`), sped up. The reply in it was sent from the channel during that run and delivered by the hook.
 
 ## Run it
 
@@ -22,20 +28,22 @@ cd open-yc/backchannel
 npm install
 npm run build
 node src/cli.ts hooks install     # Claude Code (~/.claude/settings.json) and Codex (~/.codex/hooks.json)
-node src/cli.ts serve             # prints http://127.0.0.1:47321/app
+node src/cli.ts serve --open      # opens http://127.0.0.1:47321/app
 ```
 
-Open the printed link, then use Claude Code or Codex as usual. Sessions that start after `hooks install` can receive replies. Older sessions still appear on the channel, read only.
+Use Claude Code or Codex as usual. If a reply never reaches an agent, run `node src/cli.ts doctor`: it checks the hooks, the hook script and node paths they run, the transcript folders and the server, and prints the fix for each problem. Sessions that start after `hooks install` can receive replies. Older sessions still appear on the channel, read only.
 
 - **Codex** runs a new or changed hook only after you trust it: open Codex and run `/hooks`.
+- **The hook script is copied** to `~/.backchannel/hook/` on install, and the settings point there, so moving or deleting the clone does not break your agents' hooks.
 - **Remove the hooks** with `node src/cli.ts hooks uninstall`. Only backchannel's entries are removed, and a backup of each settings file is kept as `*.backchannel.bak`.
 - **Scope the hooks to one project** with `--project DIR`. This writes `.claude/settings.local.json` and `.codex/hooks.json` in that project, not your user settings.
 
 | Command | Does |
 |---|---|
-| `serve [--port 47321] [--since-hours 24] [--only DIR]... [--mid-run] [--no-intro]` | Start the channel. `--only` limits it to sessions working inside those folders. |
+| `serve [--port 47321] [--since-hours 24] [--only DIR]... [--mid-run] [--no-intro] [--open]` | Start the channel. `--only` limits it to sessions working inside those folders; `--open` opens it in your browser. |
 | `hooks install\|uninstall\|status [--agent claude-code\|codex\|all] [--project DIR]` | Manage the hook. |
 | `usage [--days 7] [--json]` | Print token usage and estimated cost from local transcripts, no server needed. |
+| `doctor [--project DIR]` | Check the setup end to end and print a fix for each problem. Exits 1 if something is broken. |
 
 Keyboard in the console: `[` and `]` switch agent, `/` focuses the reply box, `l` toggles listening.
 
@@ -86,8 +94,8 @@ Claude Code / Codex ── transcripts (~/.claude/projects, ~/.codex/sessions) �
 
 ```bash
 npm run typecheck
-npm test              # 71 tests: parsers, usage and pricing, posts, narration, server security and chat, the hook as a real child process, hook install
-npm run build:demo && npm run e2e     # demo build in headless Chrome: replay, stations, reply, spend, phone width, no errors
+npm test              # 87 tests: parsers, usage and pricing, spend from dropped files, posts, narration, server security and chat, the hook as a real child process, hook install, doctor
+npm run build:demo && npm run e2e     # demo build in headless Chrome: replay, stations, reply, spend, own spend from a picked folder (no network), phone width, no errors
 npm run build && npm run verify:live  # real agents; spends a few cents
 ```
 
@@ -127,6 +135,8 @@ node src/cli.ts serve --dev                 # prints a dev link with the token
 ```
 
 The server runs straight from TypeScript with Node's type stripping. Vite builds the web app into `dist/`, and `npm run build:demo` builds the hosted replay.
+
+`npm pack` builds the publishable package (`backchannel-agents`, command `backchannel`). Node does not strip types inside `node_modules`, so `prepack` compiles `src/` to plain JS in `lib/` (`tsconfig.build.json`) and builds `dist/`. The package has no runtime dependencies. CI installs the tarball into an empty folder and runs it.
 
 ## License
 

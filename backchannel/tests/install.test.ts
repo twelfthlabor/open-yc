@@ -2,7 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "no
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { EVENTS, handlerFor, install, settingsPath, status, uninstall } from "../src/server/install.ts";
+import { EVENTS, HOOK_PATH, handlerFor, hookTargets, install, settingsPath, stableHook, status, uninstall } from "../src/server/install.ts";
 
 let dir: string;
 beforeEach(() => {
@@ -60,5 +60,35 @@ describe("hook install", () => {
     expect(settingsPath("claude-code", { userHome: "/u", project: "/p" })).toBe(join("/p", ".claude", "settings.local.json"));
     expect(settingsPath("codex", { userHome: "/u", project: "/p" })).toBe(join("/p", ".codex", "hooks.json"));
     expect(settingsPath("claude-code", { userHome: "/u" })).toBe(join("/u", ".claude", "settings.json"));
+  });
+
+  it("copies the hook into backchannel's home so settings never point into an npx cache", () => {
+    const home = join(dir, "bc");
+    const dest = stableHook(home);
+    expect(dest).toBe(join(home, "hook", "backchannel-hook.mjs"));
+    expect(readFileSync(dest, "utf8")).toBe(readFileSync(HOOK_PATH, "utf8"));
+    writeFileSync(dest, "// stale copy from an older version");
+    expect(stableHook(home)).toBe(dest);
+    expect(readFileSync(dest, "utf8")).toBe(readFileSync(HOOK_PATH, "utf8"));
+  });
+
+  it("reads back the node and hook paths each installed handler runs", () => {
+    const claude = join(dir, "settings.json");
+    const codex = join(dir, "hooks.json");
+    install("claude-code", claude, handlerFor("claude-code", { node: "/usr/bin/node", hook: "/h/backchannel-hook.mjs" }));
+    install("codex", codex, handlerFor("codex", { node: "C:\\Program Files\\nodejs\\node.exe", hook: "C:\\bc\\hook\\backchannel-hook.mjs", platform: "win32" }));
+    expect(hookTargets(claude)).toEqual([{ node: "/usr/bin/node", hook: "/h/backchannel-hook.mjs" }]);
+    expect(hookTargets(codex)).toEqual([{ node: "C:/Program Files/nodejs/node.exe", hook: "C:/bc/hook/backchannel-hook.mjs" }]);
+    expect(hookTargets(join(dir, "missing.json"))).toEqual([]);
+  });
+
+  it("repoints an older install at the new hook path instead of reporting it as installed", () => {
+    const path = join(dir, "settings.json");
+    install("claude-code", path, handlerFor("claude-code", { node: "/usr/bin/node", hook: "/old/clone/hook/backchannel-hook.mjs" }));
+    const changed = install("claude-code", path, handlerFor("claude-code", { node: "/usr/bin/node", hook: "/home/me/.backchannel/hook/backchannel-hook.mjs" }));
+    expect(changed).toEqual(EVENTS["claude-code"]);
+    expect(hookTargets(path)).toEqual([{ node: "/usr/bin/node", hook: "/home/me/.backchannel/hook/backchannel-hook.mjs" }]);
+    expect(read(path).hooks.Stop).toHaveLength(1);
+    expect(install("claude-code", path, handlerFor("claude-code", { node: "/usr/bin/node", hook: "/home/me/.backchannel/hook/backchannel-hook.mjs" }))).toEqual([]);
   });
 });

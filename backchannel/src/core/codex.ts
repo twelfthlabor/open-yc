@@ -51,6 +51,8 @@ function describeExec(code: string) {
 
 export function parseCodex(rec: Rec, state: CodexState): AgentEvent[] {
   const out: AgentEvent[] = [];
+  // A JSONL line can hold any JSON value; only objects are records.
+  if (!rec || typeof rec !== "object" || Array.isArray(rec)) return out;
   const ts: string = rec.timestamp ?? new Date(0).toISOString();
   const p: Rec = rec.payload ?? {};
 

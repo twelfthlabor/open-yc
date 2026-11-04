@@ -28,3 +28,13 @@ jobs:
       - run: npm run build
       - run: npm run build:demo
       - run: node src/cli.ts --help
+      - name: Pack, install the tarball in an empty folder, and run it
+        shell: bash
+        run: |
+          npm pack --pack-destination "$RUNNER_TEMP"
+          mkdir "$RUNNER_TEMP/try" && cd "$RUNNER_TEMP/try" && npm init -y > /dev/null
+          npm install "$RUNNER_TEMP"/backchannel-agents-*.tgz
+          npx backchannel --help
+          export BACKCHANNEL_HOME="$RUNNER_TEMP/h/bc" CLAUDE_CONFIG_DIR="$RUNNER_TEMP/h/claude" CODEX_HOME="$RUNNER_TEMP/h/codex"
+          npx backchannel hooks install
+          npx backchannel doctor || test $? -eq 1

@@ -1,23 +1,40 @@
 [build-system]
-requires = ["setuptools>=68"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "aiwarden"
 version = "0.1.0"
 description = "Open-source endpoint visibility and guardrails for AI apps, agents and MCP servers"
-readme = "README.md"
-license = { text = "MIT" }
+readme = { file = "README.md", content-type = "text/markdown" }
+license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [{ name = "Daniel Liu" }]
-keywords = ["ai-security", "mcp", "shadow-ai", "agents", "claude-code", "endpoint"]
+keywords = ["ai-security", "mcp", "shadow-ai", "agents", "claude-code", "codex", "gemini-cli", "guardrails", "endpoint"]
 classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Environment :: Web Environment",
+  "Intended Audience :: Developers",
+  "Intended Audience :: System Administrators",
+  "Intended Audience :: Information Technology",
   "Programming Language :: Python :: 3",
-  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3 :: Only",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "Operating System :: OS Independent",
   "Topic :: Security",
+  "Topic :: System :: Monitoring",
 ]
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/twelfthlabor/open-yc/tree/main/aiwarden"
+Source = "https://github.com/twelfthlabor/open-yc/tree/main/aiwarden"
+Issues = "https://github.com/twelfthlabor/open-yc/issues"
+Demo = "https://aiwarden-gamma.vercel.app"
 
 [project.optional-dependencies]
 proc = ["psutil>=5.9"]
@@ -30,7 +47,7 @@ aiwarden = "aiwarden.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-aiwarden = ["static/app/*", "static/app/assets/*"]
+aiwarden = ["static/app/**/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

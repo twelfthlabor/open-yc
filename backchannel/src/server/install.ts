@@ -73,9 +73,17 @@ export function install(agent: AgentKind, path: string, handler: Handler = handl
   const data = load(path);
   data.hooks ??= {};
   const added: string[] = [];
+  const same = (h: Handler) => h.command === handler.command && JSON.stringify(h.args ?? null) === JSON.stringify(handler.args ?? null);
   for (const event of EVENTS[agent]) {
     const groups: any[] = Array.isArray(data.hooks[event]) ? data.hooks[event] : [];
-    if (groups.some((g) => Array.isArray(g?.hooks) && g.hooks.some(isOurs))) continue;
+    const ours = groups.flatMap((g) => (Array.isArray(g?.hooks) ? g.hooks.filter(isOurs) : []));
+    if (ours.length && ours.every(same)) continue;
+    if (ours.length) {
+      // An older install points somewhere else (a moved clone, an old npx cache): repoint it.
+      for (const g of groups) if (Array.isArray(g?.hooks)) g.hooks = g.hooks.map((h: Handler) => (isOurs(h) ? handler : h));
+      added.push(event);
+      continue;
+    }
     groups.push({ ...(TOOL_EVENTS.has(event) ? { matcher: "*" } : {}), hooks: [handler] });
     data.hooks[event] = groups;
     added.push(event);
@@ -119,4 +127,39 @@ export function status(path: string): string[] {
   return Object.entries<any>(data.hooks ?? {})
     .filter(([, groups]) => Array.isArray(groups) && groups.some((g) => Array.isArray(g?.hooks) && g.hooks.some(isOurs)))
     .map(([event]) => event);
+}
+
+// Copies the hook into backchannel's own folder and returns that path. Settings then point at a
+// file that outlives the package: an npx cache can be cleared, and a clone can be moved.
+export function stableHook(home: string, from: string = HOOK_PATH): string {
+  const dest = join(home, "hook", HOOK_FILE);
+  const src = readFileSync(from);
+  if (!existsSync(dest) || !readFileSync(dest).equals(src)) {
+    mkdirSync(dirname(dest), { recursive: true });
+    writeFileSync(`${dest}.tmp`, src);
+    renameSync(`${dest}.tmp`, dest);
+  }
+  return dest;
+}
+
+// The node binary and hook script each of our installed handlers runs, deduplicated.
+export function hookTargets(path: string): { node: string; hook: string }[] {
+  if (!existsSync(path)) return [];
+  const seen = new Map<string, { node: string; hook: string }>();
+  for (const groups of Object.values<any>(load(path).hooks ?? {})) {
+    if (!Array.isArray(groups)) continue;
+    for (const g of groups) {
+      for (const h of Array.isArray(g?.hooks) ? g.hooks : []) {
+        if (!isOurs(h)) continue;
+        let target: { node: string; hook: string } | null = null;
+        if (Array.isArray(h.args) && h.args.length) target = { node: h.command, hook: h.args[0] };
+        else {
+          const quoted = [...String(h.command).matchAll(/"([^"]+)"/g)].map((m) => m[1]);
+          if (quoted.length >= 2) target = { node: quoted[0], hook: quoted[1] };
+        }
+        if (target) seen.set(`${target.node}\n${target.hook}`, target);
+      }
+    }
+  }
+  return [...seen.values()];
 }

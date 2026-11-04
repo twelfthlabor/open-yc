@@ -654,3 +654,79 @@ kbd {
     grid-template-columns: minmax(70px, 120px) minmax(0, 1fr) 110px;
   }
 }
+
+/* own spend (hosted demo): pick a transcript folder, read in the tab */
+.own {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin: 0 0 26px;
+  padding: 18px 20px;
+  border: 1.5px dashed var(--line);
+  border-radius: var(--radius-m);
+  background: var(--paper-2);
+}
+
+.own.over {
+  border-color: var(--signal);
+  background: var(--signal-soft);
+}
+
+.own h2 {
+  margin: 0 0 4px;
+  font-size: 1.05rem;
+  font-stretch: 112%;
+}
+
+.own p {
+  margin: 0;
+  max-width: 64ch;
+  font-size: 0.9rem;
+  color: var(--ink-2);
+}
+
+.own .own-hint {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.own .err {
+  margin-top: 8px;
+}
+
+.own-btn {
+  font: inherit;
+  font-weight: 650;
+  padding: 10px 18px;
+  border: 0;
+  border-radius: var(--radius-s);
+  background: var(--signal);
+  color: var(--signal-ink);
+  cursor: pointer;
+}
+
+.own-btn:disabled {
+  opacity: 0.6;
+  cursor: progress;
+}
+
+.own-loaded {
+  margin: 0 0 18px;
+  padding: 10px 14px;
+  border-radius: var(--radius-s);
+  background: var(--signal-soft);
+  font-size: 0.88rem;
+}
+
+.linkish {
+  font: inherit;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--signal);
+  text-decoration: underline;
+  cursor: pointer;
+}

@@ -54,7 +54,7 @@ export function App() {
   const source: Source = useMemo(() => (IS_DEMO ? replaySource({ speed: 1 }) : liveSource()), []);
   const [state, dispatch] = useReducer(reduce, { sessions: new Map(), posts: [], lastPost: null });
   const [status, setStatus] = useState<Status>("connecting");
-  const [tab, setTab] = useState<"channel" | "spend">("channel");
+  const [tab, setTab] = useState<"channel" | "spend">(() => (location.hash === "#spend" ? "spend" : "channel"));
   const [tuned, setTuned] = useState<string | null>(null);
   const [listening, setListening] = useState(false);
   const [onlyUrgent, setOnlyUrgent] = useState(false);
