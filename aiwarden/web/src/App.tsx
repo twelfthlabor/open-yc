@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { adoptTokenFromHash, api, tokenStore } from "./lib/api";
+import { adoptTokenFromHash, api, onSourceChange, tokenStore } from "./lib/api";
 import { useRoute } from "./lib/router";
 import { useApi } from "./lib/useApi";
 import { Shell, type Theme } from "./components/Shell";
 import { pageTitle } from "./components/nav";
-import { ErrorNote, Loading } from "./components/ui";
+import { Empty, ErrorNote, Loading, PageHead } from "./components/ui";
 import { Connect } from "./pages/Connect";
 import { Overview } from "./pages/Overview";
 import { Ask } from "./pages/Ask";
@@ -42,6 +42,12 @@ export function App() {
   // bumped when the data behind every view changes (a rescan finished), so pages with their own fetch reload
   const [rev, setRev] = useState(0);
   const route = useRoute();
+  // bumped when a report file is opened or closed (hosted demo), so every view re-reads its data source
+  const [source, setSource] = useState(0);
+  useEffect(() => onSourceChange(() => {
+    setSource((n) => n + 1);
+    setRev((r) => r + 1);
+  }), []);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -69,9 +75,9 @@ export function App() {
   }, []);
 
   const waiting = needsToken && !token;
-  const meta = useApi(() => (waiting ? Promise.resolve(null) : api.meta()), `${token}|${waiting}`, onUnauthorized);
+  const meta = useApi(() => (waiting ? Promise.resolve(null) : api.meta()), `${token}|${waiting}|${source}`, onUnauthorized);
   const M = meta.data;
-  const fleet = useApi(() => (M ? api.fleet() : Promise.resolve(null)), `${token}|${M ? M.mode : ""}`, onUnauthorized);
+  const fleet = useApi(() => (M ? api.fleet() : Promise.resolve(null)), `${token}|${M ? M.mode : ""}|${source}`, onUnauthorized);
 
   useEffect(() => {
     document.title = pageTitle(route.path);
@@ -142,6 +148,7 @@ export function App() {
   if (meta.error && !M) body = <ErrorNote error={meta.error} retry={meta.reload} />;
   else if (fleet.error) body = <ErrorNote error={fleet.error} retry={fleet.reload} />;
   else if (!F || !M) body = <Loading rows={6} />;
+  else if (M.mode === "file" && (section === "ask" || section === "alerts" || section === "weekly")) body = <NeedsLocal section={section} />;
   else if (section === "devices" && sub) body = <Device id={sub} rev={rev} onUnauthorized={onUnauthorized} />;
   else {
     switch (section) {
@@ -179,7 +186,7 @@ export function App() {
         body = <Weekly onUnauthorized={onUnauthorized} />;
         break;
       default:
-        body = <Overview fleet={F} />;
+        body = <Overview fleet={F} demo={M.mode === "demo"} />;
     }
   }
   return (
@@ -198,5 +205,25 @@ export function App() {
         {body}
       </div>
     </Shell>
+  );
+}
+
+const LOCAL_ONLY: Record<string, { title: string; what: string; cmd: string }> = {
+  ask: { title: "Ask", what: "Questions are answered by aiwarden's query engine, which runs in Python.", cmd: 'aiwarden ask "top 5 models by cost in the last 30 days"' },
+  alerts: { title: "Alerts", what: "Alert rules compare reports over time in Python, and one report file has no history.", cmd: "aiwarden alerts --dry-run" },
+  weekly: { title: "Weekly report", what: "The weekly report is built in Python from a week of reports.", cmd: "aiwarden report weekly --format html --out weekly.html" },
+};
+
+/** Ask, Alerts and Weekly need the Python backend; with a report file open there is none. */
+function NeedsLocal({ section }: { section: string }) {
+  const p = LOCAL_ONLY[section];
+  return (
+    <>
+      <PageHead title={p.title} />
+      <Empty title="This page needs the local install">
+        {p.what} Your report file is open in the browser only, so run this on your machine instead: <code>{p.cmd}</code>, or open the whole console with{" "}
+        <code>aiwarden serve --local</code>.
+      </Empty>
+    </>
   );
 }

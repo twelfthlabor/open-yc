@@ -199,7 +199,8 @@ export interface Weekly {
 
 /** What kind of server the console is talking to. Only this, never a build flag, changes the layout. */
 export interface Meta {
-  mode: "local" | "collector" | "demo";
+  /** "file": a report opened in the browser (demo build), answered client-side; see api.ts. */
+  mode: "local" | "collector" | "demo" | "file";
   auth: "none" | "token";
   read_only: boolean;
   rescan: { available: boolean; running: boolean; last: string | null; error: string | null };

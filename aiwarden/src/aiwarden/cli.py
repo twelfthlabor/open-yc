@@ -434,6 +434,82 @@ def cmd_policy(args) -> int:
     return 0
 
 
+def _ask_yes(question: str) -> bool | None:
+    """True/False from the user; None when there is no terminal to ask (piped stdin, CI)."""
+    try:
+        return input(f"{question} [y/N] ").strip().lower() in {"y", "yes"}
+    except (EOFError, OSError):
+        return None
+
+
+def cmd_setup(args) -> int:
+    """First run on a laptop: scan, offer the guard for the agents found, write a monitor-mode policy, point at the console."""
+    from .hooks import AGENT_HOOKS, POST_INSTALL, install_agent_hook
+    from .report import build_report
+    env = _env(args)
+    say = (lambda *a: None) if args.json else print
+    r = build_report(env, processes=_processes(args), include_usage=False)
+    s = r["summary"]
+    found = [a for a in r["apps"] if a["id"] in AGENT_HOOKS]
+    serious = sum(s["findings"].get(k, 0) for k in ("critical", "high"))
+    say(f"Scanned {r['device']['hostname']}: {s['apps']} AI apps, {s['mcp_servers']} MCP servers, "
+        f"{s['plaintext_secrets']} plaintext secrets, {serious} high-risk findings.")
+
+    installed: list[str] = []
+    errors: dict[str, str] = {}
+    if not found:
+        say("No Claude Code, Codex or Gemini CLI found, so there is no agent to guard yet.")
+    else:
+        say("Agents the guard can protect: " + ", ".join(a["name"] for a in found))
+        if args.no_hooks:
+            say("Guard hooks: skipped (--no-hooks).")
+            ok = False
+        elif args.yes:
+            ok = True
+        else:
+            # --json output is for scripts: never put a prompt on stdout.
+            ok = None if args.json else _ask_yes("Install the guard hook in these agents?")
+            if ok is None:
+                say("Guard hooks: not installed (no terminal to ask). Re-run with --yes to install them.")
+        if ok:
+            for a in found:
+                try:
+                    added, target = install_agent_hook(a["id"], env, args.command)
+                except (ValueError, OSError) as e:
+                    errors[a["id"]] = str(e)
+                    print(f"{a['name']}: guard NOT installed: {e}. The settings file was left unchanged.", file=sys.stderr)
+                    continue
+                installed.append(a["id"])
+                say(f"  {a['name']}: {'installed' if added else 'already installed'}: {target}")
+                if added and a["id"] in POST_INSTALL:
+                    say(f"    note: {POST_INSTALL[a['id']]}")
+        elif ok is False and not args.no_hooks:
+            say("Guard hooks: not installed. Run `aiwarden hooks install --agent all` later.")
+
+    policy = env.state_dir / "policy.toml"
+    written = not policy.exists()
+    if written:
+        policy.parent.mkdir(parents=True, exist_ok=True)
+        policy.write_text(POLICY_TEMPLATE.replace('\nmode = "enforce"\n', '\nmode = "monitor"\n', 1), encoding="utf-8")
+        say(f"Policy: wrote {policy} in monitor mode (logs what it would block). Set mode = \"enforce\" to start blocking.")
+    else:
+        say(f"Policy: kept your existing {policy}")
+
+    url = f"http://127.0.0.1:{args.port}/"
+    if args.json:
+        print(json.dumps({"agents": [a["id"] for a in found], "hooks_installed": installed, "errors": errors,
+                          "policy": {"path": str(policy), "written": written}, "console": url}))
+    else:
+        say(f"\nConsole for this machine: aiwarden serve --local   ->  {url}")
+        if errors:
+            say(f"\nThe guard is NOT installed for: {', '.join(errors)}. Fix the settings file(s) above, then run "
+                "`aiwarden hooks install --agent <name>`.")
+    if args.serve:
+        args.local, args.host, args.db, args.token, args.teams = True, "127.0.0.1", None, None, None
+        return cmd_serve(args)
+    return 1 if errors else 0
+
+
 def cmd_rules(args) -> int:
     from .policy import RULES
     print(_table([[k, a, d] for k, (a, d) in RULES.items()], ["RULE", "DEFAULT", "DESCRIPTION"]))
@@ -618,6 +694,22 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--settings", help="explicit settings file path (single --agent only)")
     s.add_argument("--command", help="hook command (default: this Python running `-m aiwarden guard [--agent X]`)")
     s.set_defaults(fn=cmd_hooks)
+
+    s = sub.add_parser("setup", help="first run: scan, offer guard hooks for the agents found, write a monitor-mode policy",
+                       description="Scans this device, lists the agents the guard can protect, installs the guard hook in them "
+                                   "(asks first unless --yes), writes ~/.aiwarden/policy.toml in monitor mode if there is none, "
+                                   "and prints the link to the local console.")
+    s.add_argument("--yes", "-y", action="store_true", help="install the guard hooks without asking")
+    s.add_argument("--no-hooks", action="store_true", help="do not install guard hooks")
+    s.add_argument("--serve", action="store_true", help="start the local console when done")
+    s.add_argument("--port", type=int, default=8765, help="console port (default 8765)")
+    s.add_argument("--rescan-every", type=int, default=300, metavar="SECONDS", help=argparse.SUPPRESS)
+    s.add_argument("--command", help=argparse.SUPPRESS)
+    s.add_argument("--json", action="store_true", help="print a JSON summary")
+    # Also accepted after the subcommand; SUPPRESS keeps a value given before it.
+    s.add_argument("--home", default=argparse.SUPPRESS, help="set up this home directory instead of the current user's")
+    s.add_argument("--platform", choices=["windows", "darwin", "linux"], default=argparse.SUPPRESS, help=argparse.SUPPRESS)
+    s.set_defaults(fn=cmd_setup)
 
     s = sub.add_parser("policy", help="create the guard policy file")
     s.add_argument("action", choices=["init", "path"])

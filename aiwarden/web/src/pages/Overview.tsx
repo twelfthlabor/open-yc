@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { AreaChart, BarList, SevBar, dailySeries } from "../components/Charts";
+import { DemoHero } from "../components/DemoHero";
 import { DataTable } from "../components/Table";
 import { Block, DecisionBadge, Empty, Sev, Stat } from "../components/ui";
 import { ago, compact, day, pct, plural, tokens, usd } from "../lib/format";
@@ -18,7 +19,7 @@ export function sumWindow(byDay: Record<string, { input_tokens?: number; output_
   return { tok, cost };
 }
 
-export function Overview({ fleet }: { fleet: Fleet }) {
+export function Overview({ fleet, demo = false }: { fleet: Fleet; demo?: boolean }) {
   const t = fleet.totals;
   const f = t.findings || {};
   const serious = (f.critical || 0) + (f.high || 0);
@@ -51,6 +52,7 @@ export function Overview({ fleet }: { fleet: Fleet }) {
 
   return (
     <>
+      {demo && <DemoHero fleet={fleet} />}
       <h1 className="posture">
         <a href={href("devices")}>{plural(devices, "device")}</a> {devices === 1 ? "runs" : "run"} <a href={href("devices")}>{plural(t.apps || 0, "AI app")}</a> and{" "}
         <a href={href("mcp")}>{plural(t.mcp_servers || 0, "MCP server")}</a>.{" "}

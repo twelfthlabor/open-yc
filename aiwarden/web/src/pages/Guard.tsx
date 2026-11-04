@@ -7,7 +7,7 @@ import type { Decision, Fleet } from "../lib/types";
 import { useApi } from "../lib/useApi";
 import { GuardTable } from "./Overview";
 
-const AGENTS = [
+export const AGENTS = [
   { id: "claude-code", label: "Claude Code", shell: "Bash" },
   { id: "codex", label: "Codex", shell: "shell" },
   { id: "gemini-cli", label: "Gemini CLI", shell: "run_shell_command" },
@@ -25,7 +25,7 @@ const EXAMPLES = [
 const FILTERS = ["all", "blocked", "asked", "allowed"] as const;
 const FILTER_ACTION: Record<string, string> = { blocked: "deny", asked: "ask", allowed: "allow" };
 
-function inputFor(agent: string, cmd: string): Record<string, unknown> {
+export function inputFor(agent: string, cmd: string): Record<string, unknown> {
   return agent === "codex" ? { command: ["bash", "-lc", cmd] } : { command: cmd };
 }
 
