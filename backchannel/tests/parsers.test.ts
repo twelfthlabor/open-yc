@@ -159,3 +159,14 @@ describe("Codex transcripts", () => {
     expect(parseCodex(codexTokens(1, 0, 1), newCodexState())).toEqual([]);
   });
 });
+
+describe("records that are not objects", () => {
+  it("are ignored by both parsers instead of throwing", async () => {
+    const { newClaudeState, parseClaude } = await import("../src/core/claude.ts");
+    const { newCodexState, parseCodex } = await import("../src/core/codex.ts");
+    for (const rec of [null, 42, "x", [1]]) {
+      expect(parseClaude(rec as any, newClaudeState())).toEqual([]);
+      expect(parseCodex(rec as any, newCodexState())).toEqual([]);
+    }
+  });
+});

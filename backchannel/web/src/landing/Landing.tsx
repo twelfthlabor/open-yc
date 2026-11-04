@@ -55,7 +55,7 @@ function useActiveSection(): string {
 export function Landing() {
   const [state, dispatch] = useReducer(reduce, { sessions: new Map(), posts: [], beat: 0 });
   const [rec, setRec] = useState<Recording | null>(null);
-  const source = useMemo(() => replaySource({ speed: 1 }), []);
+  const source = useMemo(() => replaySource({ speed: 1, skip: ["joined"], prefill: true }), []);
   const active = useActiveSection();
   const listenRef = useRef<HTMLDivElement>(null);
 
@@ -94,11 +94,13 @@ export function Landing() {
             <a className="cta primary" href="/app.html">
               Open the demo channel
             </a>
-            <a className="cta" href={REPO}>
-              Read the source
+            <a className="cta" href="/app.html#spend">
+              See your own spend
             </a>
           </div>
-          <p className="fine">Open source, MIT. Runs on your machine. Not affiliated with Agent FM.</p>
+          <p className="fine">
+            <a href={REPO}>Read the source</a>. Open source, MIT. Runs on your machine. Not affiliated with Agent FM.
+          </p>
         </div>
       </header>
 
@@ -165,7 +167,10 @@ export function Landing() {
             </div>
             <div>
               <dt>See what it costs</dt>
-              <dd>Tokens and estimated spend by provider, model, session and day, plus how much context each MCP server and skill added. The totals match Claude Code’s own cost report to the cent.</dd>
+              <dd>
+                Tokens and estimated spend by provider, model, session and day, plus how much context each MCP server and skill added. The totals match Claude Code’s own cost report to the cent.{" "}
+                <a href="/app.html#spend">Try it on your own transcripts</a> here, read in your browser.
+              </dd>
             </div>
             <div>
               <dt>Talk back</dt>
@@ -251,7 +256,8 @@ cd open-yc/backchannel
 npm install
 npm run build
 node src/cli.ts hooks install      # Claude Code and Codex
-node src/cli.ts serve              # prints the link to your channel`}</code>
+node src/cli.ts serve --open       # opens your channel in the browser
+node src/cli.ts doctor             # if a reply never arrives: checks hooks, server, paths`}</code>
           </pre>
           <p>
             Codex runs a new hook only after you trust it: open Codex and run <code>/hooks</code>. To remove everything, run <code>node src/cli.ts hooks uninstall</code>.

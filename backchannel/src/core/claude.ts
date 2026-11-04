@@ -31,6 +31,8 @@ function isSyntheticPrompt(text: string): boolean {
 
 export function parseClaude(rec: Rec, state: ClaudeState): AgentEvent[] {
   const out: AgentEvent[] = [];
+  // A JSONL line can hold any JSON value; only objects are records.
+  if (!rec || typeof rec !== "object" || Array.isArray(rec)) return out;
   const sessionId: string | undefined = rec.sessionId;
   if (!sessionId) return out;
   const ts: string = rec.timestamp ?? new Date(0).toISOString();

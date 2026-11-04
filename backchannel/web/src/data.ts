@@ -80,7 +80,10 @@ export function loadRecording(): Promise<Recording> {
 }
 
 // Replays a recording in real order with shortened gaps, then starts over.
-export function replaySource(opts: { speed?: number; loop?: boolean } = {}): Source {
+// - skip: post kinds to leave out (the landing page drops "joined"; its chips already say who is on).
+// - prefill: show everything before the first urgent post at once, so a visitor lands on the
+//   failing test or blocker instead of waiting through the warm-up.
+export function replaySource(opts: { speed?: number; loop?: boolean; skip?: Post["kind"][]; prefill?: boolean } = {}): Source {
   const speed = opts.speed ?? 1;
   return {
     demo: true,
@@ -89,14 +92,17 @@ export function replaySource(opts: { speed?: number; loop?: boolean } = {}): Sou
       let timer: number | undefined;
       onStatus("replay");
       void loadRecording().then((rec) => {
-        const posts = [...rec.posts].sort((a, b) => a.ts.localeCompare(b.ts));
+        const posts = [...rec.posts].filter((p) => !opts.skip?.includes(p.kind)).sort((a, b) => a.ts.localeCompare(b.ts));
+        const firstUrgent = opts.prefill ? Math.max(0, posts.findIndex((p) => p.urgent)) : 0;
         const run = () => {
           if (stopped) return;
           const sessions: SessionInfo[] = rec.sessions.map((s) => ({ ...s, status: "working" }));
           const base = Date.now();
-          const shift = (ts: string) => new Date(base + (Date.parse(ts) - Date.parse(posts[0]?.ts ?? ts))).toISOString();
-          onMessage({ type: "snapshot", data: { sessions, posts: [], demo: true } });
-          let i = 0;
+          const anchor = posts[firstUrgent]?.ts ?? posts[0]?.ts;
+          const shift = (ts: string) => new Date(base + (Date.parse(ts) - Date.parse(anchor ?? ts))).toISOString();
+          const before = posts.slice(0, firstUrgent).map((p) => ({ ...p, ts: shift(p.ts), delivery: p.delivery?.at ? { ...p.delivery, at: shift(p.delivery.at) } : p.delivery }));
+          onMessage({ type: "snapshot", data: { sessions, posts: before, demo: true } });
+          let i = firstUrgent;
           const step = () => {
             if (stopped) return;
             if (i >= posts.length) {

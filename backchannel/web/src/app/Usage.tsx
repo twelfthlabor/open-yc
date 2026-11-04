@@ -1,6 +1,18 @@
 import { useEffect, useState } from "react";
+import type { TranscriptFile } from "../../../src/core/offline.ts";
 import type { Source, Usage, UsageReport } from "../data.ts";
 import { fmtInt, fmtTokens, fmtUsd } from "../format.ts";
+import { OwnSpend, type Own } from "./OwnSpend.tsx";
+
+const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+type Loaded = Usage & { files?: { read: number; skipped: number; badLines: number } };
+
+// The parser and ledger are only needed once someone drops their own files, so load them then.
+async function ownUsage(files: TranscriptFile[], days: number): Promise<Loaded> {
+  const { usageFromTranscripts } = await import("../../../src/core/offline.ts");
+  return usageFromTranscripts(files, new Date(Date.now() - days * 86_400_000).toISOString());
+}
 
 type Row = UsageReport["byModel"][number];
 
@@ -59,37 +71,65 @@ function Daily({ rows }: { rows: Row[] }) {
 
 export function UsageView({ source }: { source: Source }) {
   const [days, setDays] = useState(7);
-  const [data, setData] = useState<Usage | null>(null);
+  const [data, setData] = useState<Loaded | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [own, setOwn] = useState<Own | null>(null);
 
   useEffect(() => {
     let live = true;
     setError(null);
-    source
-      .usage(days)
+    const load = () => (own ? ownUsage(own.files, days) : source.usage(days));
+    load()
       .then((d) => live && setData(d))
       .catch((e) => live && setError(String(e.message ?? e)));
-    const t = source.demo ? undefined : window.setInterval(() => source.usage(days).then((d) => live && setData(d)).catch(() => {}), 15_000);
+    const t = source.demo || own ? undefined : window.setInterval(() => load().then((d) => live && setData(d)).catch(() => {}), 15_000);
     return () => {
       live = false;
       if (t) clearInterval(t);
     };
-  }, [source, days]);
+  }, [source, days, own]);
 
   if (error) return <p className="u-error">Could not load spend: {error}</p>;
   if (!data) return <p className="u-empty">Loading spend…</p>;
   const t = data.totals;
+  const recorded = source.demo && !own;
   return (
     <div className="usage">
+      {recorded ? (
+        <OwnSpend
+          onLoad={(picked) => {
+            setData(null);
+            setDays(30);
+            setOwn(picked);
+          }}
+        />
+      ) : null}
+      {own ? (
+        <p className="own-loaded" role="status">
+          Your transcripts: {plural(data.files?.read ?? own.files.length, "file")} read in this tab
+          {own.skipped + (data.files?.skipped ?? 0) ? `, ${own.skipped + (data.files?.skipped ?? 0)} skipped (older than 30 days, subagent or not a transcript)` : ""}. Nothing was uploaded.{" "}
+          <button
+            type="button"
+            className="linkish"
+            onClick={() => {
+              setData(null);
+              setDays(7);
+              setOwn(null);
+            }}
+          >
+            Back to the recorded run
+          </button>
+        </p>
+      ) : null}
       <div className="u-head">
         <div>
           <h1>{fmtUsd(t.costUsd)}</h1>
           <p>
-            {fmtInt(t.total)} tokens across {data.bySession.length} sessions{source.demo ? " in the recorded run" : ""}, at API list prices.
+            {fmtInt(t.total)} tokens across {plural(data.bySession.length, "session")}{recorded ? " in the recorded run" : ""}, at API list prices.
             {t.unpriced ? ` Another ${fmtInt(t.unpriced)} tokens came from models with no price on file.` : ""}
           </p>
         </div>
-        {source.demo ? null : (
+        {recorded ? null : (
           <div className="u-range" role="group" aria-label="Period">
             {[1, 7, 30].map((d) => (
               <button key={d} type="button" aria-pressed={days === d} onClick={() => setDays(d)}>

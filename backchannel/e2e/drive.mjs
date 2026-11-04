@@ -1,7 +1,8 @@
 // End-to-end check of the hosted demo build (landing page + console replaying the recording)
 // in headless Chrome. Serves dist/ itself.
 //   npm run build:demo && npm run e2e        screenshots go to docs/screenshots/
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { createServer } from "node:http";
 import { extname, join, normalize, resolve } from "node:path";
 import { chromium } from "playwright-core";
@@ -97,6 +98,38 @@ await shot(page, "app-spend.png");
 await page.keyboard.press("]");
 check("] switches to the next agent", (await page.locator(".station.on").count()) === 1);
 await page.close();
+
+// Own spend: pick a transcript folder in the demo; it is read in the tab and nothing is sent.
+{
+  const root = mkdtempSync(join(tmpdir(), "bc-e2e-own-"));
+  const proj = join(root, "projects", "-home-me-shop");
+  mkdirSync(join(proj, "s1", "subagents"), { recursive: true });
+  const ts = new Date(Date.now() - 3_600_000).toISOString();
+  const line = (id) => JSON.stringify({ type: "assistant", sessionId: "e2e-session", cwd: "/home/me/shop", timestamp: ts, uuid: id, message: { id, model: "claude-opus-5-5", role: "assistant", content: [{ type: "text", text: "ok" }], stop_reason: "end_turn", usage: { input_tokens: 1000, output_tokens: 2000 } } });
+  writeFileSync(join(proj, "e2e-session.jsonl"), `${line("m1")}
+`);
+  writeFileSync(join(proj, "s1", "subagents", "agent-1.jsonl"), `${line("m2")}
+`);
+  page = await open("/app.html#spend", { width: 1440, height: 900 });
+  await page.locator(".own").waitFor({ timeout: 10_000 });
+  check("#spend opens the Spend view with the own-spend picker", true);
+  const sent = [];
+  page.on("request", (r) => {
+    const u = new URL(r.url());
+    if (r.method() !== "GET" || u.origin !== new URL(URL_).origin || !/\.(js|css|woff2|json|svg)$/.test(u.pathname)) sent.push(`${r.method()} ${r.url()}`);
+  });
+  await page.locator('input[type="file"]').setInputFiles(join(root, "projects"));
+  await page.locator(".own-loaded").waitFor({ timeout: 10_000 });
+  const head = await page.locator(".u-head p").textContent();
+  check("own spend counts the picked transcript, not the subagent one", head?.includes("3,000 tokens across 1 session,"), head?.slice(0, 60));
+  check("own spend reports what it read", (await page.locator(".own-loaded").textContent())?.includes("1 file read in this tab, 1 skipped"));
+  check("picking files sends nothing over the network", sent.length === 0, sent.join(", ").slice(0, 200));
+  await shot(page, "app-own-spend.png");
+  await page.getByRole("button", { name: "Back to the recorded run" }).click();
+  await page.locator(".own").waitFor();
+  check("back to the recorded run restores the demo numbers", (await page.locator(".u-head p").textContent())?.includes("in the recorded run"));
+  await page.close();
+}
 
 // Console, phone
 page = await open("/app.html", { width: 390, height: 844 }, "dark");

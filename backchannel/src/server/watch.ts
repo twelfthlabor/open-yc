@@ -118,7 +118,7 @@ export class TranscriptWatcher {
         if (!line.trim()) continue;
         let rec: unknown;
         try {
-          rec = JSON.parse(line);
+          rec = JSON.parse(line.replace(/^\uFEFF/, ""));
         } catch {
           continue;
         }
